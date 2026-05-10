@@ -1,0 +1,667 @@
+{
+  "info": {
+    "_postman_id": "afaaq-auditor-v1",
+    "name": "Afaaq — Auditor API (v1)",
+    "description": "Importer collection for auditor workflows: JWT login, learning catalog, content reviews, notifications.\n\n**Collection Runner order:** run **Login (Auditor)** → **List auditor courses** before any request that uses `{{courseSlug}}`. Otherwise Postman stops with a clear pre-request error.\n\n**baseUrl** must be the server root only, e.g. `http://localhost:8000` — never `http://localhost:8000/api/v1` (would duplicate `/api/v1` in URLs → 404 and `"status\":\"error\"`). A collection Pre-request script enforces this.\n\nPrerequisites: PermissionSeeder + AuditorRoleSeeder; user must have role `auditor` (guard api).\n\n`courseSlug` is filled from **List auditor courses** (`slug`, else numeric `id`).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "let baseUrl = (pm.collectionVariables.get('baseUrl') || '').trim().replace(/\\/+$/, '');",
+          "if (baseUrl.includes('/api')) {",
+          "  throw new Error('baseUrl must be server root only, e.g. http://localhost:8000 — do NOT add /api or /api/v1 (URLs already include /api/v1).');",
+          "}",
+          "pm.collectionVariables.set('baseUrl', baseUrl);"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000" },
+    { "key": "token", "value": "" },
+    { "key": "courseSlug", "value": "your-course-slug" },
+    { "key": "unitSlug", "value": "your-unit-slug" },
+    { "key": "lessonSlug", "value": "your-lesson-slug" },
+    { "key": "courseCategoryId", "value": "1" },
+    { "key": "quizId", "value": "1" },
+    { "key": "questionId", "value": "1" },
+    { "key": "notificationId", "value": "uuid-from-notifications-list" },
+    { "key": "chatThreadId", "value": "1" },
+    { "key": "chatMessageId", "value": "1" },
+    { "key": "participantUserId", "value": "2" },
+    { "key": "lessonId", "value": "1" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login (Auditor)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('API status success', () => pm.expect(j.status).to.eql('success'));",
+                  "if (j.data && j.data.token) {",
+                  "  pm.collectionVariables.set('token', j.data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"auditor@example.com\",\n  \"password\": \"your-password\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "description": "Response envelope: { status, message, data: { status, user, role, token } }."
+          }
+        },
+        {
+          "name": "Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/auth/profile"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/auth/logout"
+          }
+        },
+        {
+          "name": "Refresh token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/auth/refresh"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auditor — Courses & content reviews",
+      "description": "Routes under `/api/v1/auditor/...` require JWT + `auditor` role. `{course}` resolves by **slug**, or by numeric **course_id** when the segment is numeric.",
+      "item": [
+        {
+          "name": "List auditor courses",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('API status success', () => pm.expect(j.status).to.eql('success'));",
+                  "const rows = j.data;",
+                  "pm.test('Has course list array', () => pm.expect(rows).to.be.an('array'));",
+                  "if (Array.isArray(rows) && rows.length) {",
+                  "  const c = rows[0];",
+                  "  const key = c.slug != null && c.slug !== '' ? c.slug : String(c.id);",
+                  "  pm.collectionVariables.set('courseSlug', key);",
+                  "} else {",
+                  "  console.warn('No courses in DB — create/seed courses before course-scoped requests.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/auditor/courses",
+            "description": "Sets collection variable `courseSlug` from the first course slug when Tests run."
+          }
+        },
+        {
+          "name": "Show auditor course",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const slug = pm.collectionVariables.get('courseSlug');",
+                  "if (!slug || slug === 'your-course-slug') {",
+                  "  throw new Error('Run \"List auditor courses\" first so courseSlug is set.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('API status success', () => pm.expect(j.status).to.eql('success'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/auditor/courses/{{courseSlug}}"
+          }
+        },
+        {
+          "name": "Get course content reviews",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const slug = pm.collectionVariables.get('courseSlug');",
+                  "if (!slug || slug === 'your-course-slug') {",
+                  "  throw new Error('Run \"List auditor courses\" first so courseSlug is set.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('API status success', () => pm.expect(j.status).to.eql('success'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/auditor/courses/{{courseSlug}}/content-reviews",
+            "description": "Optional query: per_page (1–100, default 15). Course identifier goes in the path segment `.../courses/{{courseSlug}}/content-reviews`, never as `?course=`."
+          }
+        },
+        {
+          "name": "Submit course content review",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const slug = pm.collectionVariables.get('courseSlug');",
+                  "if (!slug || slug === 'your-course-slug') {",
+                  "  throw new Error('Run \"List auditor courses\" first so courseSlug is set.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "pm.test('API status success', () => pm.expect(j.status).to.eql('success'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"verdict\": \"changes_requested\",\n  \"notes\": \"ملاحظات المراجع\",\n  \"lesson_id\": {{lessonId}}\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auditor/courses/{{courseSlug}}/content-reviews",
+            "description": "verdict: approved | changes_requested | follow_up. lesson_id optional."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Learning — Categories",
+      "item": [
+        {
+          "name": "List course categories",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/course-categories",
+            "description": "Optional query: search, slug, name, is_active, per_page, order_by, order_direction."
+          }
+        },
+        {
+          "name": "Show course category",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/course-categories/{{courseCategoryId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Learning — Courses / Units / Lessons",
+      "item": [
+        {
+          "name": "List courses (all statuses)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/courses",
+            "description": "Optional query: status (draft|review|published|archived), course_category_id, language, difficulty_level, per_page, etc."
+          }
+        },
+        {
+          "name": "List courses pending review",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/courses?status=review&per_page=15"
+          }
+        },
+        {
+          "name": "Show course",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const slug = pm.collectionVariables.get('courseSlug');",
+                  "if (!slug || slug === 'your-course-slug') {",
+                  "  throw new Error('Run \"Auditor → List auditor courses\" first so courseSlug is set.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('API status success', () => pm.expect(j.status).to.eql('success'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/courses/{{courseSlug}}"
+          }
+        },
+        {
+          "name": "List units for course",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const slug = pm.collectionVariables.get('courseSlug');",
+                  "if (!slug || slug === 'your-course-slug') {",
+                  "  throw new Error('Run \"Auditor → List auditor courses\" first so courseSlug is set.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('API status success', () => pm.expect(j.status).to.eql('success'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/courses/{{courseSlug}}/units"
+          }
+        },
+        {
+          "name": "Show unit",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/units/{{unitSlug}}"
+          }
+        },
+        {
+          "name": "List lessons for unit",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/units/{{unitSlug}}/lessons"
+          }
+        },
+        {
+          "name": "Show lesson (content / media links)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/lessons/{{lessonSlug}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Assessment — Read-only",
+      "item": [
+        {
+          "name": "List quizzes",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/quizzes"
+          }
+        },
+        {
+          "name": "Show quiz",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/quizzes/{{quizId}}"
+          }
+        },
+        {
+          "name": "List questions",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/questions"
+          }
+        },
+        {
+          "name": "Show question",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/questions/{{questionId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Communication — Chat & Realtime Notifications",
+      "description": "DB-first + WebSocket ready APIs. Use these requests to validate message/notification persistence and realtime payload triggers.",
+      "item": [
+        {
+          "name": "Create chat thread",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "pm.test('API status success', () => pm.expect(j.status).to.eql('success'));",
+                  "const id = j?.data?.id;",
+                  "if (id != null) pm.collectionVariables.set('chatThreadId', String(id));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Audit Discussion - Week 1\",\n  \"course_id\": null,\n  \"participant_ids\": [2, 3]\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/chat-threads"
+          }
+        },
+        {
+          "name": "List my chat threads",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/chat-threads"
+          }
+        },
+        {
+          "name": "Show chat thread",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/chat-threads/{{chatThreadId}}"
+          }
+        },
+        {
+          "name": "Add participant to thread",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": {{participantUserId}},\n  \"role\": \"member\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/chat-threads/{{chatThreadId}}/participants"
+          }
+        },
+        {
+          "name": "List participants",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/chat-threads/{{chatThreadId}}/participants"
+          }
+        },
+        {
+          "name": "Send chat message",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "pm.test('API status success', () => pm.expect(j.status).to.eql('success'));",
+                  "const id = j?.data?.id;",
+                  "if (id != null) pm.collectionVariables.set('chatMessageId', String(id));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"This is a realtime test message\",\n  \"metadata\": {\n    \"type\": \"text\",\n    \"client_message_id\": \"msg-local-001\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/chat-threads/{{chatThreadId}}/messages"
+          }
+        },
+        {
+          "name": "List thread messages",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/chat-threads/{{chatThreadId}}/messages"
+          }
+        },
+        {
+          "name": "Mark message read",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/chat-messages/{{chatMessageId}}/read"
+          }
+        },
+        {
+          "name": "Chat unread count",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/chat-unread-count"
+          }
+        },
+        {
+          "name": "Archive chat thread",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/chat-threads/{{chatThreadId}}/archive"
+          }
+        },
+        {
+          "name": "Remove participant",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/chat-threads/{{chatThreadId}}/participants/{{participantUserId}}"
+          }
+        },
+        {
+          "name": "Create notification (system)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_ids\": [2, 3],\n  \"title\": \"Course updated\",\n  \"body\": \"A lesson has been updated and needs review\",\n  \"type\": \"system\",\n  \"data\": {\n    \"entity\": \"lesson\",\n    \"entity_id\": 1,\n    \"action\": \"updated\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/notifications"
+          }
+        },
+        {
+          "name": "List notifications (auditor scope)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "const first = j?.data?.data?.[0] || j?.data?.[0];",
+                  "if (first?.id) pm.collectionVariables.set('notificationId', String(first.id));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/auditor/notifications?unread_only=true"
+          }
+        },
+        {
+          "name": "Unread notifications count (auditor)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/auditor/notifications/unread-count"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List my notifications",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/auditor/notifications",
+            "description": "Optional query: unread_only=true. Auditor-scoped path (requires auditor role)."
+          }
+        },
+        {
+          "name": "Mark notification read",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = pm.collectionVariables.get('notificationId');",
+                  "if (!id || id === 'uuid-from-notifications-list') {",
+                  "  throw new Error('Run \"List my notifications\" and set collection variable notificationId to a real UUID.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('API status success', () => pm.expect(j.status).to.eql('success'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/auditor/notifications/{{notificationId}}/read",
+            "description": "Use notification `id` (UUID) from list response — not numeric 1."
+          }
+        },
+        {
+          "name": "Mark all notifications read",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/auditor/notifications/read-all"
+          }
+        }
+      ]
+    }
+  ]
+}
