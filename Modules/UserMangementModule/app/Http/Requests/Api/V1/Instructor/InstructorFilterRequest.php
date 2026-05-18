@@ -12,8 +12,10 @@ class InstructorFilterRequest extends ApiFormRequest
     public function rules(): array
     {
         return [
-            'term'=>'soetimes|string|max:100',
-            'years'=>'sometimes|int',
+            'term' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'years' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:80'],
+            'gender' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
         ];
     }
 

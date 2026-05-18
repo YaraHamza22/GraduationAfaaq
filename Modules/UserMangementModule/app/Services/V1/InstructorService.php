@@ -18,17 +18,54 @@ class InstructorService
 
     public function list(array $filters, int $perPage = 15)
     {
-        ksort($filters);
-        $filtersKey = md5(json_encode($filters));
+        $perPage = (int) ($filters['per_page'] ?? $perPage);
+        $perPage = min(100, max(1, $perPage));
+
+        $filtersForQuery = $filters;
+        unset($filtersForQuery['per_page']);
+
+        ksort($filtersForQuery);
+        $filtersKey = md5(json_encode($filtersForQuery));
         $cacheVersion = $this->getCacheVersion();
         $cacheKey = "instructors_list_{$filtersKey}_limit_{$perPage}_v{$cacheVersion}";
 
-        return $this->rememberWithTags([self::TAG_GLOBAL], $cacheKey, function () use ($filters, $perPage) {
+        return $this->rememberWithTags([self::TAG_GLOBAL], $cacheKey, function () use ($filtersForQuery, $perPage) {
             return User::whereHas('instructorProfile')
                 ->with(['media', 'instructorProfile', 'roles.permissions'])
-                ->filters($filters)
+                ->filters($filtersForQuery)
                 ->paginate($perPage);
         });
+    }
+
+    /**
+     * Paginated instructor directory for learners (no roles, email, or permissions).
+     */
+    public function listForStudentDirectory(array $filters): \Illuminate\Contracts\Pagination\LengthAwarePaginator
+    {
+        $perPage = (int) ($filters['per_page'] ?? 15);
+        $perPage = min(100, max(1, $perPage));
+
+        $filtersForQuery = $filters;
+        unset($filtersForQuery['per_page']);
+
+        return User::query()
+            ->whereHas('instructorProfile')
+            ->with(['media', 'instructorProfile'])
+            ->filters($filtersForQuery)
+            ->orderBy('name')
+            ->paginate($perPage);
+    }
+
+    /**
+     * Single instructor public profile for learners.
+     */
+    public function findPublicForStudent(int $id): User
+    {
+        return User::query()
+            ->whereHas('instructorProfile')
+            ->with(['media', 'instructorProfile'])
+            ->whereKey($id)
+            ->firstOrFail();
     }
 
     public function findById(int $id)

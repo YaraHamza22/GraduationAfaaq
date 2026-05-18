@@ -40,15 +40,20 @@ Route::middleware(['auth:api'])->prefix('v1')->group(function () {
     Route::post('notifications/{notificationId}/read', [NotificationController::class, 'markRead']);
     Route::post('notifications/read-all', [NotificationController::class, 'markAllRead']);
     Route::post('notifications/digest/trigger', [NotificationController::class, 'triggerDigest'])->middleware('throttle:platform-write');
+    Route::post('notifications/assessment-result', [NotificationController::class, 'notifyAssessmentResult'])->middleware('throttle:platform-write');
+    Route::post('notifications/certificate-issued', [NotificationController::class, 'notifyCertificateIssued'])->middleware('throttle:platform-write');
+    Route::post('notifications/course-new-content', [NotificationController::class, 'notifyCourseNewContent'])->middleware('throttle:platform-write');
 
     Route::apiResource('external-integrations', IntegrationController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::get('external-integrations/{provider}/oauth-url', [IntegrationController::class, 'oauthUrl']);
     Route::post('external-integrations/{provider}/exchange-code', [IntegrationController::class, 'exchangeCode']);
 
-    Route::apiResource('virtual-sessions', VirtualSessionController::class);
-    Route::post('virtual-sessions/{virtualSession}/publish', [VirtualSessionController::class, 'publish']);
-    Route::post('virtual-sessions/{virtualSession}/cancel', [VirtualSessionController::class, 'cancel']);
-    Route::post('virtual-sessions/{virtualSession}/attendance', [VirtualSessionController::class, 'storeAttendance']);
+    Route::middleware(['role:super-admin|instructor,api'])->group(function () {
+        Route::apiResource('virtual-sessions', VirtualSessionController::class);
+        Route::post('virtual-sessions/{virtualSession}/publish', [VirtualSessionController::class, 'publish']);
+        Route::post('virtual-sessions/{virtualSession}/cancel', [VirtualSessionController::class, 'cancel']);
+        Route::post('virtual-sessions/{virtualSession}/attendance', [VirtualSessionController::class, 'storeAttendance']);
+    });
     Route::apiResource('offline-packages', OfflinePackageController::class)->only(['index', 'store', 'show']);
     Route::post('offline-packages/{offlinePackage}/tokens', [OfflinePackageController::class, 'issueToken']);
     Route::post('offline-packages/tokens/{offlineDownloadToken}/revoke', [OfflinePackageController::class, 'revokeToken']);

@@ -3,12 +3,11 @@
 namespace Modules\UserMangementModule\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Modules\UserMangementModule\Services\V1\InstructorService;
 use Modules\UserMangementModule\Http\Requests\Api\V1\Instructor\InstructorFilterRequest;
 use Modules\UserMangementModule\Http\Requests\Api\V1\Instructor\InstructorStoreRequest;
 use Modules\UserMangementModule\Http\Requests\Api\V1\Instructor\InstructorUpdateRequest;
 use Modules\UserMangementModule\Models\User;
+use Modules\UserMangementModule\Services\V1\InstructorService;
 
 class InstructorController extends Controller
 {
@@ -25,17 +24,17 @@ class InstructorController extends Controller
         $this->middleware('permission:delete-instructor')->only('destroy');
     }
 
-    public function index(Request $request)
+    public function index(InstructorFilterRequest $request)
     {
         $instructors = $this->instructorService->list($request->validated());
 
-        return self::paginated($instructors, 'instructors retrieved successfully');
+        return self::paginated($instructors, 'api.instructor.admin_list_success');
     }
     public function store(InstructorStoreRequest $request)
     {
         $instructor = $this->instructorService->create($request->validated());
 
-        return self::success($instructor, 'instructor created successfully', 201);
+        return self::success($instructor, 'api.instructor.admin_created_success', 201);
     }
     public function show(int $id)
     {
@@ -43,17 +42,17 @@ class InstructorController extends Controller
 
         return self::success($instructor);
     }
-    public function update(InstructorUpdateRequest $request, int $id)
+    public function update(InstructorUpdateRequest $request, User $instructor)
     {
-        $instructor = $this->instructorService->update($id, $request->validated());
+        $instructor = $this->instructorService->update($instructor, $request->validated());
 
-        return self::success($instructor, 'instructor updated successfully');
+        return self::success($instructor, 'api.instructor.admin_updated_success');
     }
     public function destroy(User $instructor)
-    {       
+    {
         $this->instructorService->delete($instructor);
 
-        return self::success(null, 'instructor deleted successfully');
+        return self::success(null, 'api.instructor.admin_deleted_success');
     }
 
    

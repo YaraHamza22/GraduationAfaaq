@@ -30,6 +30,10 @@ class RouteServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by((string) optional($request->user())->id ?: (string) $request->ip());
         });
 
+        RateLimiter::for('platform-sensitive-read', function (Request $request) {
+            return Limit::perMinute(120)->by((string) optional($request->user())->id ?: (string) $request->ip());
+        });
+
         parent::boot();
     }
 

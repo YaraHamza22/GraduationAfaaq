@@ -3,32 +3,78 @@
 namespace Modules\UserMangementModule\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Modules\ReportingModule\Http\Resources\ActivityLogResource;
+use Modules\UserMangementModule\Http\Requests\Api\V1\Security\SecurityAuditLogIndexRequest;
 use Spatie\Activitylog\Models\Activity;
 
+/**
+ * Sensitive audit trail (السجلات الحساسة) for super-admin: full activity rows with filters.
+ */
 class SecurityAuditLogController extends Controller
 {
-    public function __construct()
+    public function index(SecurityAuditLogIndexRequest $request): JsonResponse
     {
-        $this->middleware('auth:api');
-        $this->middleware('role:super-admin,api');
+        $filters = $request->validated();
+
+        $query = Activity::query()
+            ->with('causer')
+            ->orderByDesc('id');
+
+        if (! empty($filters['log_name'])) {
+            $query->where('log_name', $filters['log_name']);
+        }
+
+        if (! empty($filters['event'])) {
+            $query->where('event', $filters['event']);
+        }
+
+        if (! empty($filters['subject_type'])) {
+            $query->where('subject_type', 'like', '%'.$filters['subject_type'].'%');
+        }
+
+        if (isset($filters['subject_id'])) {
+            $query->where('subject_id', $filters['subject_id']);
+        }
+
+        if (isset($filters['causer_id'])) {
+            $query->where('causer_id', $filters['causer_id']);
+        }
+
+        if (! empty($filters['from'])) {
+            $query->where('created_at', '>=', $filters['from']);
+        }
+
+        if (! empty($filters['to'])) {
+            $query->where('created_at', '<=', $filters['to'].' 23:59:59');
+        }
+
+        if (! empty($filters['description'])) {
+            $query->where('description', 'like', '%'.$filters['description'].'%');
+        }
+
+        $perPage = (int) ($filters['per_page'] ?? 25);
+        $perPage = min(100, max(1, $perPage));
+
+        $paginator = $query->paginate($perPage);
+        $paginator->setCollection(
+            $paginator->getCollection()->map(
+                fn (Activity $row) => (new ActivityLogResource($row))->resolve()
+            )
+        );
+
+        return self::paginated($paginator, 'api.security.audit_logs_list_success');
     }
 
-    public function index(Request $request)
+    public function show(int $activity_log): JsonResponse
     {
-        $query = Activity::query()
-            ->select(['id', 'log_name', 'description', 'subject_type', 'subject_id', 'causer_type', 'causer_id', 'event', 'created_at'])
-            ->with(['causer:id,name,email'])
-            ->latest('id');
+        $activity = Activity::query()
+            ->with('causer')
+            ->findOrFail($activity_log);
 
-        if ($request->filled('event')) {
-            $query->where('event', (string) $request->query('event'));
-        }
-
-        if ($request->filled('log_name')) {
-            $query->where('log_name', (string) $request->query('log_name'));
-        }
-
-        return self::paginated($query->paginate(25), 'Security audit logs fetched successfully.');
+        return self::success(
+            (new ActivityLogResource($activity))->resolve(),
+            'api.security.audit_log_one_success'
+        );
     }
 }

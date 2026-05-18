@@ -59,7 +59,7 @@ class ActivityLogController extends Controller
             )
         );
 
-        return self::paginated($paginator, 'Activity log retrieved successfully.');
+        return self::paginated($paginator, 'api.activity_log.list_success');
     }
 
     public function show(int $activity_log): JsonResponse
@@ -70,7 +70,7 @@ class ActivityLogController extends Controller
 
         return self::success(
             new ActivityLogResource($activity),
-            'Activity log entry retrieved successfully.'
+            'api.activity_log.one_success'
         );
     }
 }

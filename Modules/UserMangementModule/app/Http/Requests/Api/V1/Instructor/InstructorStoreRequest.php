@@ -30,8 +30,8 @@ class InstructorStoreRequest extends ApiFormRequest
             'specialization'=>'required|string|max:255',
             'bio'=>'nullable|string|max:1500',
             'years_of_experience'=>'required|integer',
-            'avatar' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-            'cv'=> 'nullable|mimes:pdf|max:5120',
+            'avatar' => 'nullable|image|mimes:jpg,jpeg,png|max:1048576', 
+            'cv'=> 'nullable|mimes:pdf|max:5242880',
         ];
     }
 

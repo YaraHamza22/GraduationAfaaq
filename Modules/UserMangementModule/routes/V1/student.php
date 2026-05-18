@@ -8,6 +8,7 @@ use Modules\LearningModule\Http\Controllers\UnitController;
 use Modules\AssesmentModule\Http\Controllers\Api\V1\CertificateController;
 use Modules\ReportingModule\Http\Controllers\StudentDashboardController;
 use Modules\UserMangementModule\Http\Controllers\Api\V1\StudentController;
+use Modules\UserMangementModule\Http\Controllers\Api\V1\StudentInstructorDirectoryController;
 
 /**
  |----------------------------------------------------
@@ -20,9 +21,26 @@ use Modules\UserMangementModule\Http\Controllers\Api\V1\StudentController;
  * 3. CourseAccessScope: Filters all queries to the 'enrollment' table.
  * @prefix api/v1
  * @auth   Required (JWT)
- * @access Student Only
+ * @access Student (most routes); instructor directory also allows super-admin for oversight.
  * @scope  CourseAccessScope (filters courses by student to insure students can only access their enrolled courses)
  */
+Route::middleware(['auth:api', 'role:student|super-admin,api'])->group(function () {
+    /**
+     * @name   Instructor directory | دليل المدرّسين (طالب أو مشرف عام)
+     * @path   GET /api/v1/student/instructors
+     * @controller StudentInstructorDirectoryController@index
+     */
+    Route::get('/student/instructors', [StudentInstructorDirectoryController::class, 'index']);
+
+    /**
+     * @name   Instructor public profile
+     * @path   GET /api/v1/student/instructors/{instructor}
+     * @controller StudentInstructorDirectoryController@show
+     */
+    Route::get('/student/instructors/{instructor}', [StudentInstructorDirectoryController::class, 'show'])
+        ->whereNumber('instructor');
+});
+
 Route::group(['middleware' => ['auth:api', 'role:student,api']], function () {
     /**
     |--------------------------------------------------------------------------

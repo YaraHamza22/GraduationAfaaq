@@ -6,14 +6,23 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Auth;
+use Modules\AssesmentModule\Models\Attempt;
+use Modules\AssesmentModule\Models\CourseCertificate;
 use Modules\CommunicationModule\Http\Requests\Notification\StoreNotificationRequest;
 use Modules\CommunicationModule\Services\V1\NotificationService;
+use Modules\LearningModule\Models\Course;
 
 class NotificationController extends Controller
 {
     public function __construct(private NotificationService $notificationService)
     {
-        $this->middleware('permission:create-notification')->only(['store', 'triggerDigest']);
+        $this->middleware('permission:create-notification')->only([
+            'store',
+            'triggerDigest',
+            'notifyAssessmentResult',
+            'notifyCertificateIssued',
+            'notifyCourseNewContent',
+        ]);
     }
 
     public function index()
@@ -83,5 +92,45 @@ class NotificationController extends Controller
     public function triggerDigest()
     {
         return self::success(['triggered' => true], 'Digest trigger accepted.');
+    }
+
+    public function notifyAssessmentResult()
+    {
+        $data = request()->validate([
+            'attempt_id' => ['required', 'integer', 'exists:attempts,id'],
+        ]);
+
+        $attempt = Attempt::query()->findOrFail((int) $data['attempt_id']);
+        $sent = $this->notificationService->sendAssessmentResultNotification($attempt);
+
+        return self::success(['sent' => $sent], 'Assessment result notification processed.');
+    }
+
+    public function notifyCertificateIssued()
+    {
+        $data = request()->validate([
+            'certificate_id' => ['required', 'integer', 'exists:course_certificates,id'],
+        ]);
+
+        $certificate = CourseCertificate::query()->findOrFail((int) $data['certificate_id']);
+        $sent = $this->notificationService->sendCertificateIssuedNotification($certificate);
+
+        return self::success(['sent' => $sent], 'Certificate issued notification processed.');
+    }
+
+    public function notifyCourseNewContent()
+    {
+        $data = request()->validate([
+            'course_id' => ['required'],
+        ]);
+
+        $course = Course::query()
+            ->where('course_id', $data['course_id'])
+            ->orWhere('slug', $data['course_id'])
+            ->firstOrFail();
+
+        $sent = $this->notificationService->sendNewCourseContentNotification($course);
+
+        return self::success(['sent' => $sent], 'Course new content notification processed.');
     }
 }

@@ -45,7 +45,28 @@ Route::group([
     Route::get('/dashboard', [AdminDashboardController::class, 'index']);
     Route::get('/settings', [SuperAdminSettingsController::class, 'show']);
     Route::put('/settings', [SuperAdminSettingsController::class, 'update']);
-    Route::get('/security/audit-logs', [SecurityAuditLogController::class, 'index'])->middleware('throttle:platform-write');
+
+    /**
+     * Sensitive records / السجلات الحساسة (super-admin only)
+     *
+     * EN: Full activity-log style records with filters (log_name, event, subject, causer, date range, description).
+     * AR: سجلات النشاط والتدقيق الكاملة مع تصفية متقدمة.
+     *
+     * @path   GET /api/v1/super-admin/security/audit-logs
+     * @path   GET /api/v1/super-admin/security/sensitive-logs  (alias / مسار موازٍ)
+     * @path   GET /api/v1/super-admin/security/audit-logs/{activity_log}
+     * @path   GET /api/v1/super-admin/security/sensitive-logs/{activity_log}
+     * @desc   List or show one sensitive audit row (same payload as detailed activity log resource).
+     * @controller SecurityAuditLogController@index | SecurityAuditLogController@show
+     */
+    Route::prefix('security')->middleware('throttle:platform-sensitive-read')->group(function () {
+        Route::get('/audit-logs', [SecurityAuditLogController::class, 'index']);
+        Route::get('/audit-logs/{activity_log}', [SecurityAuditLogController::class, 'show'])
+            ->whereNumber('activity_log');
+        Route::get('/sensitive-logs', [SecurityAuditLogController::class, 'index']);
+        Route::get('/sensitive-logs/{activity_log}', [SecurityAuditLogController::class, 'show'])
+            ->whereNumber('activity_log');
+    });
 
     /**
     |--------------------------------------------------------------------------

@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\Translation\Exception\NotFoundResourceException;
+use App\Http\Middleware\MeasureResponseTime;
 use Modules\UserMangementModule\routes\api;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -33,7 +34,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
         ]);
+
+        $middleware->api(append: [
+            MeasureResponseTime::class,
+        ]);
     })
+    
     
     ->withExceptions(function (Exceptions $exceptions): void {
 
