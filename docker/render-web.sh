@@ -9,6 +9,8 @@ mkdir -p \
   storage/framework/views \
   bootstrap/cache
 touch storage/logs/laravel.log
+chown -R www-data:www-data storage bootstrap/cache public
+chmod -R ug+rwx storage bootstrap/cache
 
 php artisan storage:link || true
 php artisan package:discover --ansi || true
