@@ -1,0 +1,254 @@
+services:
+  - type: web
+    name: afaaq-api
+    runtime: docker
+    plan: starter
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /up
+    preDeployCommand: php artisan package:discover --ansi && php artisan migrate --force && php artisan module:migrate -a --force -n
+    envVars:
+      - key: APP_NAME
+        value: Laravel
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_URL
+        sync: false
+      - key: APP_KEY
+        generateValue: true
+      - key: APP_LOCALE
+        value: en
+      - key: APP_FALLBACK_LOCALE
+        value: en
+      - key: APP_FAKER_LOCALE
+        value: en_US
+      - key: BCRYPT_ROUNDS
+        value: "12"
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: info
+      - key: DB_CONNECTION
+        value: mysql
+      - key: DB_HOST
+        fromService:
+          type: pserv
+          name: afaaq-mysql
+          property: host
+      - key: DB_PORT
+        fromService:
+          type: pserv
+          name: afaaq-mysql
+          property: port
+      - key: DB_DATABASE
+        fromService:
+          type: pserv
+          name: afaaq-mysql
+          envVarKey: MYSQL_DATABASE
+      - key: DB_USERNAME
+        fromService:
+          type: pserv
+          name: afaaq-mysql
+          envVarKey: MYSQL_USER
+      - key: DB_PASSWORD
+        fromService:
+          type: pserv
+          name: afaaq-mysql
+          envVarKey: MYSQL_PASSWORD
+      - key: SESSION_DRIVER
+        value: file
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: CACHE_STORE
+        value: redis
+      - key: FILESYSTEM_DISK
+        value: local
+      - key: REDIS_CLIENT
+        value: predis
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: afaaq-redis
+          property: connectionString
+      - key: REDIS_HOST
+        fromService:
+          type: keyvalue
+          name: afaaq-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: keyvalue
+          name: afaaq-redis
+          property: port
+      - key: MAIL_MAILER
+        value: log
+      - key: MAIL_FROM_ADDRESS
+        value: hello@example.com
+      - key: MAIL_FROM_NAME
+        value: Laravel
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ALGO
+        value: HS256
+
+  - type: worker
+    name: afaaq-queue
+    runtime: docker
+    plan: starter
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    dockerCommand: php artisan queue:work --verbose --tries=3 --timeout=90
+    envVars:
+      - key: APP_NAME
+        fromService:
+          type: web
+          name: afaaq-api
+          envVarKey: APP_NAME
+      - key: APP_ENV
+        fromService:
+          type: web
+          name: afaaq-api
+          envVarKey: APP_ENV
+      - key: APP_DEBUG
+        fromService:
+          type: web
+          name: afaaq-api
+          envVarKey: APP_DEBUG
+      - key: APP_KEY
+        fromService:
+          type: web
+          name: afaaq-api
+          envVarKey: APP_KEY
+      - key: LOG_CHANNEL
+        fromService:
+          type: web
+          name: afaaq-api
+          envVarKey: LOG_CHANNEL
+      - key: LOG_LEVEL
+        fromService:
+          type: web
+          name: afaaq-api
+          envVarKey: LOG_LEVEL
+      - key: DB_CONNECTION
+        fromService:
+          type: web
+          name: afaaq-api
+          envVarKey: DB_CONNECTION
+      - key: DB_HOST
+        fromService:
+          type: pserv
+          name: afaaq-mysql
+          property: host
+      - key: DB_PORT
+        fromService:
+          type: pserv
+          name: afaaq-mysql
+          property: port
+      - key: DB_DATABASE
+        fromService:
+          type: pserv
+          name: afaaq-mysql
+          envVarKey: MYSQL_DATABASE
+      - key: DB_USERNAME
+        fromService:
+          type: pserv
+          name: afaaq-mysql
+          envVarKey: MYSQL_USER
+      - key: DB_PASSWORD
+        fromService:
+          type: pserv
+          name: afaaq-mysql
+          envVarKey: MYSQL_PASSWORD
+      - key: SESSION_DRIVER
+        fromService:
+          type: web
+          name: afaaq-api
+          envVarKey: SESSION_DRIVER
+      - key: QUEUE_CONNECTION
+        fromService:
+          type: web
+          name: afaaq-api
+          envVarKey: QUEUE_CONNECTION
+      - key: CACHE_STORE
+        fromService:
+          type: web
+          name: afaaq-api
+          envVarKey: CACHE_STORE
+      - key: FILESYSTEM_DISK
+        fromService:
+          type: web
+          name: afaaq-api
+          envVarKey: FILESYSTEM_DISK
+      - key: REDIS_CLIENT
+        fromService:
+          type: web
+          name: afaaq-api
+          envVarKey: REDIS_CLIENT
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: afaaq-redis
+          property: connectionString
+      - key: REDIS_HOST
+        fromService:
+          type: keyvalue
+          name: afaaq-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: keyvalue
+          name: afaaq-redis
+          property: port
+      - key: MAIL_MAILER
+        fromService:
+          type: web
+          name: afaaq-api
+          envVarKey: MAIL_MAILER
+      - key: MAIL_FROM_ADDRESS
+        fromService:
+          type: web
+          name: afaaq-api
+          envVarKey: MAIL_FROM_ADDRESS
+      - key: MAIL_FROM_NAME
+        fromService:
+          type: web
+          name: afaaq-api
+          envVarKey: MAIL_FROM_NAME
+      - key: JWT_SECRET
+        fromService:
+          type: web
+          name: afaaq-api
+          envVarKey: JWT_SECRET
+      - key: JWT_ALGO
+        fromService:
+          type: web
+          name: afaaq-api
+          envVarKey: JWT_ALGO
+
+  - type: pserv
+    name: afaaq-mysql
+    runtime: image
+    plan: starter
+    region: frankfurt
+    image:
+      url: docker.io/mysql:8.0
+    disk:
+      name: afaaq-mysql-data
+      mountPath: /var/lib/mysql
+      sizeGB: 10
+    envVars:
+      - key: MYSQL_DATABASE
+        value: AfaaqEducationalPlatform
+      - key: MYSQL_USER
+        value: afaaq
+      - key: MYSQL_PASSWORD
+        generateValue: true
+      - key: MYSQL_ROOT_PASSWORD
+        generateValue: true
+
+  - type: keyvalue
+    name: afaaq-redis
+    plan: starter
+    region: frankfurt
