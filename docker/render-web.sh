@@ -1,6 +1,36 @@
 #!/bin/sh
 set -e
 
+APP_KEY_NORMALIZED=$(php -r '
+$key = getenv("APP_KEY") ?: "";
+$cipher = "AES-256-CBC";
+
+$normalize = function (string $value): string {
+    if ($value === "") {
+        return "base64:" . base64_encode(random_bytes(32));
+    }
+
+    if (str_starts_with($value, "base64:")) {
+        $decoded = base64_decode(substr($value, 7), true);
+        if ($decoded !== false && strlen($decoded) === 32) {
+            return $value;
+        }
+    }
+
+    if (strlen($value) === 32) {
+        return $value;
+    }
+
+    return "base64:" . base64_encode(substr(hash("sha256", $value, true), 0, 32));
+};
+
+$normalized = $normalize($key);
+echo $normalized;
+')
+
+export APP_KEY="$APP_KEY_NORMALIZED"
+export APP_PREVIOUS_KEYS=
+
 mkdir -p \
   storage/logs \
   storage/framework/cache/data \
