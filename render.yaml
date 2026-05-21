@@ -252,3 +252,4 @@ services:
     name: afaaq-redis
     plan: starter
     region: frankfurt
+    ipAllowList: []
