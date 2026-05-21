@@ -6,7 +6,6 @@ services:
     region: frankfurt
     dockerfilePath: ./Dockerfile
     healthCheckPath: /up
-    preDeployCommand: php artisan package:discover --ansi && php artisan migrate --force && php artisan module:migrate -a --force -n
     envVars:
       - key: APP_NAME
         value: Laravel
