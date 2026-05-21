@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y \
     libfreetype6-dev \
     libicu-dev \
     libjpeg62-turbo-dev \
+    libonig-dev \
     libpng-dev \
     libzip-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
