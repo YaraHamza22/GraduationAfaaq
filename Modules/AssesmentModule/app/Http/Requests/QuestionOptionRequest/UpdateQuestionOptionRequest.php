@@ -4,8 +4,8 @@ namespace Modules\AssesmentModule\Http\Requests\QuestionOptionRequest;
 
 use Modules\AssesmentModule\Enums\QuestionType;
 use Modules\AssesmentModule\Models\Question;
+use Modules\AssesmentModule\Models\QuestionOption;
 use App\Http\Requests\ApiFormRequest;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 /**
@@ -44,23 +44,14 @@ class UpdateQuestionOptionRequest extends ApiFormRequest
      */
     public function rules(): array
     {
-        $option = $this->route('question_option');
-        $qid = $this->input('question_id') ?? optional($option)->question_id;
-
         return [
             'option_text.*' => [
                 'sometimes', // Optional when updating
                 'string',
-                Rule::unique('question_options', 'option_text')
-                    ->where(fn($q) => $q->where('question_id', $qid))
-                    ->ignore(optional($option)->id), // Ignore the current option being updated
             ],
             'option_text' => [
                 'sometimes', // Optional when updating
                 'array',
-                Rule::unique('question_options', 'option_text')
-                    ->where(fn($q) => $q->where('question_id', $qid))
-                    ->ignore(optional($option)->id), // Ignore the current option being updated
             ],
             'is_correct' => [
                 'sometimes', // Optional when updating
@@ -84,6 +75,42 @@ class UpdateQuestionOptionRequest extends ApiFormRequest
             $question = $this->route('question');
             if ($question instanceof Question && $question->type !== QuestionType::MULTIPLE_CHOICE) {
                 $validator1->errors()->add('question_id', 'Options are allowed only for MCQ questions.');
+            }
+
+            $option = $this->route('question_option');
+            if (!($option instanceof QuestionOption)) {
+                return;
+            }
+
+            $optionText = $this->input('option_text', []);
+            if (!is_array($optionText)) {
+                return;
+            }
+
+            $existingOptions = QuestionOption::query()
+                ->where('question_id', $option->question_id)
+                ->whereKeyNot($option->getKey())
+                ->get();
+
+            foreach ($optionText as $locale => $text) {
+                if (!is_string($text)) {
+                    continue;
+                }
+
+                $normalized = trim($text);
+                if ($normalized === '') {
+                    continue;
+                }
+
+                $duplicateExists = $existingOptions->contains(function (QuestionOption $existingOption) use ($locale, $normalized) {
+                    $current = (string) data_get($existingOption->option_text, $locale, '');
+
+                    return mb_strtolower(trim($current)) === mb_strtolower($normalized);
+                });
+
+                if ($duplicateExists) {
+                    $validator1->errors()->add("option_text.$locale", 'This option already exists for the question.');
+                }
             }
         });
     }

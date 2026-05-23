@@ -3,8 +3,8 @@
 namespace Modules\AssesmentModule\Http\Requests\QuestionOptionRequest;
 
 use Modules\AssesmentModule\Models\Question;
+use Modules\AssesmentModule\Models\QuestionOption;
 use App\Http\Requests\ApiFormRequest;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 use Modules\AssesmentModule\Enums\QuestionType;
 /**
@@ -58,15 +58,12 @@ class StoreQuestionOptionRequest extends ApiFormRequest
      */
     public function rules(): array
     {
-        $qid = $this->input('question_id');
         return [
             'question_id' => ['required', 'exists:questions,id'],
             'option_text' => ['required', 'array'],
             'option_text.*' => [
                 'required',
                 'string',
-                Rule::unique('question_options', 'option_text')
-                    ->where(fn($q) => $q->where('question_id', $this->input('question_id'))),
             ],
             'is_correct' => ['required', 'boolean'],
         ];
@@ -112,6 +109,36 @@ class StoreQuestionOptionRequest extends ApiFormRequest
 
             if ($question->type !== QuestionType::MULTIPLE_CHOICE) {
                 $v->errors()->add('question_id', 'Options are allowed only for MCQ questions.');
+            }
+
+            $optionText = $this->input('option_text', []);
+            if (!is_array($optionText)) {
+                return;
+            }
+
+            $existingOptions = QuestionOption::query()
+                ->where('question_id', $question->getKey())
+                ->get();
+
+            foreach ($optionText as $locale => $text) {
+                if (!is_string($text)) {
+                    continue;
+                }
+
+                $normalized = trim($text);
+                if ($normalized === '') {
+                    continue;
+                }
+
+                $duplicateExists = $existingOptions->contains(function (QuestionOption $option) use ($locale, $normalized) {
+                    $current = (string) data_get($option->option_text, $locale, '');
+
+                    return mb_strtolower(trim($current)) === mb_strtolower($normalized);
+                });
+
+                if ($duplicateExists) {
+                    $v->errors()->add("option_text.$locale", 'This option already exists for the question.');
+                }
             }
         });
     }
