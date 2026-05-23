@@ -11,6 +11,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
 use Modules\UserMangementModule\DTOs\StudentDTO;
 use Modules\UserMangementModule\Enums\UserRole;
+use Modules\UserMangementModule\Database\Seeders\RolesAndPermissions\PermissionSeeder;
+use Modules\UserMangementModule\Database\Seeders\RolesAndPermissions\StudentRoleSeeder;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class AuthService
 {
@@ -19,6 +23,8 @@ class AuthService
         $studentDTO = StudentDTO::fromArray($data);
 
         return DB::transaction(function () use ($data, $studentDTO) {
+            $this->ensureStudentRoleExists();
+
             $userData = $studentDTO->userData();
             $studentData = $studentDTO->studentData();
             $userData['password'] = Hash::make($data['password']);
@@ -41,6 +47,19 @@ class AuthService
                 'redirect_to' => '/student/dashboard',
             ];
         });
+    }
+
+    private function ensureStudentRoleExists(): void
+    {
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        if (Role::query()->where('name', UserRole::STUDENT->value)->where('guard_name', 'api')->exists()) {
+            return;
+        }
+
+        app(PermissionSeeder::class)->run();
+        app(StudentRoleSeeder::class)->run();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 
     public function login(array $credentials): array
