@@ -11,8 +11,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
 use Modules\UserMangementModule\DTOs\StudentDTO;
 use Modules\UserMangementModule\Enums\UserRole;
+use Modules\UserMangementModule\Database\Seeders\RolesAndPermissions\AuditorRoleSeeder;
+use Modules\UserMangementModule\Database\Seeders\RolesAndPermissions\InstructorRoleSeeder;
 use Modules\UserMangementModule\Database\Seeders\RolesAndPermissions\PermissionSeeder;
 use Modules\UserMangementModule\Database\Seeders\RolesAndPermissions\StudentRoleSeeder;
+use Modules\UserMangementModule\Database\Seeders\RolesAndPermissions\SuperAdminRoleSeeder;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -23,7 +26,7 @@ class AuthService
         $studentDTO = StudentDTO::fromArray($data);
 
         return DB::transaction(function () use ($data, $studentDTO) {
-            $this->ensureStudentRoleExists();
+            $this->ensureCoreAuthDataExists();
 
             $userData = $studentDTO->userData();
             $studentData = $studentDTO->studentData();
@@ -49,21 +52,35 @@ class AuthService
         });
     }
 
-    private function ensureStudentRoleExists(): void
+    private function ensureCoreAuthDataExists(): void
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        if (Role::query()->where('name', UserRole::STUDENT->value)->where('guard_name', 'api')->exists()) {
+        $hasStudentRole = Role::query()
+            ->where('name', UserRole::STUDENT->value)
+            ->where('guard_name', 'api')
+            ->exists();
+
+        $hasSuperAdmin = User::query()
+            ->where('email', 'yara@example.com')
+            ->exists();
+
+        if ($hasStudentRole && $hasSuperAdmin) {
             return;
         }
 
         app(PermissionSeeder::class)->run();
+        app(InstructorRoleSeeder::class)->run();
+        app(AuditorRoleSeeder::class)->run();
         app(StudentRoleSeeder::class)->run();
+        app(SuperAdminRoleSeeder::class)->run();
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 
     public function login(array $credentials): array
     {
+        $this->ensureCoreAuthDataExists();
+
         $email = $credentials['email'] ?? null;
         $password = $credentials['password'] ?? null;
         $authCredentials = [
