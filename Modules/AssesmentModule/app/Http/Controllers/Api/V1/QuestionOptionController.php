@@ -96,7 +96,7 @@ class QuestionOptionController extends Controller
         return self::success(
             new QuestionOptionResource($option),
             'Question option created successfully',
-            201
+            200
         );
     } catch (Throwable $e) {
         return self::error($e->getMessage(), 500);
