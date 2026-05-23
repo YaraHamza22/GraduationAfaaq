@@ -42,7 +42,10 @@ class CourseCategoryBuilder extends Builder
      */
     public function byName(string $name): self
     {
-        return $this->where('name', $name);
+        return $this->where(function ($query) use ($name) {
+            $query->where('name->en', $name)
+                ->orWhere('name->ar', $name);
+        });
     }
 
     /**
@@ -54,8 +57,10 @@ class CourseCategoryBuilder extends Builder
     public function search(string $searchTerm): self
     {
         return $this->where(function ($query) use ($searchTerm) {
-            $query->where('name', 'like', "%{$searchTerm}%")
-                ->orWhere('description', 'like', "%{$searchTerm}%")
+            $query->where('name->en', 'like', "%{$searchTerm}%")
+                ->orWhere('name->ar', 'like', "%{$searchTerm}%")
+                ->orWhere('description->en', 'like', "%{$searchTerm}%")
+                ->orWhere('description->ar', 'like', "%{$searchTerm}%")
                 ->orWhere('slug', 'like', "%{$searchTerm}%");
         });
     }
@@ -87,7 +92,8 @@ class CourseCategoryBuilder extends Builder
      */
     public function orderByName(): self
     {
-        return $this->orderBy('name', 'asc');
+        return $this->orderBy('slug', 'asc')
+            ->orderBy('course_category_id', 'asc');
     }
 
     /**
@@ -97,7 +103,7 @@ class CourseCategoryBuilder extends Builder
      */
     public function ordered(): self
     {
-        return $this->orderBy('name', 'asc');
+        return $this->orderByName();
     }
 
     /**
