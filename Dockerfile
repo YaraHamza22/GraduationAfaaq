@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y \
     libicu-dev \
     libjpeg62-turbo-dev \
     libonig-dev \
+    libpq-dev \
     libpng-dev \
     libzip-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
@@ -30,6 +31,8 @@ RUN apt-get update && apt-get install -y \
     gd \
     intl \
     mbstring \
+    pdo_pgsql \
+    pgsql \
     pdo_mysql \
     zip \
     && rm -rf /var/lib/apt/lists/*
@@ -61,6 +64,7 @@ RUN apt-get update && apt-get install -y \
     libicu-dev \
     libjpeg62-turbo-dev \
     libonig-dev \
+    libpq-dev \
     libpng-dev \
     libzip-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
@@ -72,6 +76,8 @@ RUN apt-get update && apt-get install -y \
     mbstring \
     opcache \
     pcntl \
+    pdo_pgsql \
+    pgsql \
     pdo_mysql \
     zip \
     && a2enmod rewrite \
