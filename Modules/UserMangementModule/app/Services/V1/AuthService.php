@@ -64,12 +64,53 @@ class AuthService
 
     public function login(array $credentials): array
     {
+        $email = $credentials['email'] ?? null;
+        $password = $credentials['password'] ?? null;
         $authCredentials = [
-            'email' => $credentials['email'] ?? null,
-            'password' => $credentials['password'] ?? null,
+            'email' => $email,
+            'password' => $password,
         ];
 
         if (! $token = JWTAuth::attempt($authCredentials)) {
+            $user = is_string($email) ? User::query()->where('email', $email)->first() : null;
+
+            if (! $user || ! is_string($password) || $password === '') {
+                return [
+                    'status' => 'error',
+                    'message' => 'invalid credentials',
+                    'user' => null,
+                    'token' => null,
+                ];
+            }
+
+            $storedPassword = (string) ($user->password ?? '');
+            $matchesLegacyPlainText = $storedPassword !== '' && hash_equals($storedPassword, $password);
+
+            if (! $matchesLegacyPlainText) {
+                return [
+                    'status' => 'error',
+                    'message' => 'invalid credentials',
+                    'user' => null,
+                    'token' => null,
+                ];
+            }
+
+            $user->forceFill([
+                'password' => Hash::make($password),
+            ])->save();
+
+            $token = JWTAuth::fromUser($user);
+        }
+
+        $user = auth()->user();
+
+        if (! $user && isset($user) && $user instanceof User) {
+            auth()->setUser($user);
+        }
+
+        $user = $user ?: (is_string($email) ? User::query()->where('email', $email)->first() : null);
+
+        if (! $user) {
             return [
                 'status' => 'error',
                 'message' => 'invalid credentials',
@@ -78,7 +119,6 @@ class AuthService
             ];
         }
 
-        $user = auth()->user();
         $user->loadMissing('roles');
 
         return [
