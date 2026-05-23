@@ -11,6 +11,7 @@ use Modules\CommunicationModule\Http\Controllers\Api\V1\OfflinePackageController
 use Modules\CommunicationModule\Http\Controllers\Api\V1\VirtualSessionController;
 
 Route::middleware(['auth:api'])->prefix('v1')->group(function () {
+    Route::get('chat-threads/unread-count', [ChatThreadController::class, 'unreadCount']);
     Route::apiResource('chat-threads', ChatThreadController::class)->only(['index', 'store', 'show']);
     Route::post('chat-threads/{chatThread}/archive', [ChatThreadController::class, 'archive']);
     Route::get('chat-threads/{chatThread}/participants', [ChatThreadController::class, 'participants']);

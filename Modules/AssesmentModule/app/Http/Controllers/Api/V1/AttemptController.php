@@ -73,13 +73,32 @@ class AttemptController extends Controller
     /**
      * Display the specified attempt.
      *
-     * @param Attempt $attempt The attempt model instance.
+     * Supports both a real attempt id and, as a compatibility fallback,
+     * a quiz id for the authenticated student when the frontend passes the quiz id.
+     *
+     * @param string|int $attempt The attempt route parameter.
      * @return \Illuminate\Http\JsonResponse JSON response with the attempt data or error.
      */
-    public function show(Attempt $attempt)
+    public function show(string|int $attempt)
     {
         try {
-            $data = $this->attemptService->show($attempt);
+            $attemptModel = Attempt::query()->find($attempt);
+
+            if (!$attemptModel && is_numeric($attempt)) {
+                $studentId = auth()->id();
+
+                $attemptModel = Attempt::query()
+                    ->where('quiz_id', (int) $attempt)
+                    ->when($studentId, fn ($query) => $query->where('student_id', $studentId))
+                    ->latest('id')
+                    ->first();
+            }
+
+            if (!$attemptModel) {
+                return self::error('Attempt not found.', 404);
+            }
+
+            $data = $this->attemptService->show($attemptModel);
             return self::success($data, 'Operation successful', 200);
         } catch (Throwable $e) {
             return self::error($e->getMessage(), 500);
