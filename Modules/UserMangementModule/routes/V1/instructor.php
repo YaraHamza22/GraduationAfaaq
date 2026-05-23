@@ -6,6 +6,7 @@ use Modules\LearningModule\Http\Controllers\LessonController;
 use Modules\LearningModule\Http\Controllers\UnitController;
 use Modules\AssesmentModule\Http\Controllers\Api\V1\AssessmentProgressController;
 use Modules\ReportingModule\Http\Controllers\TeacherDashboardController;
+use Modules\UserMangementModule\Http\Controllers\Api\V1\InstructorStudentController;
 
 /**
  |----------------------------------------------------
@@ -36,6 +37,7 @@ Route::group(['middleware' => ['auth:api', 'role:instructor,api']], function () 
      * @controller TeacherDashboardController@dashboard
      */
     Route::get('/instructor/dashboard', [TeacherDashboardController::class, 'dashboard']);
+    Route::get('/instructor/students', [InstructorStudentController::class, 'index']);
 
     /**
     |--------------------------------------------------------------------------
