@@ -4,6 +4,8 @@ namespace Modules\UserMangementModule\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Schema;
 use Modules\ReportingModule\Http\Resources\ActivityLogResource;
 use Modules\UserMangementModule\Http\Requests\Api\V1\Security\SecurityAuditLogIndexRequest;
 use Spatie\Activitylog\Models\Activity;
@@ -15,6 +17,14 @@ class SecurityAuditLogController extends Controller
 {
     public function index(SecurityAuditLogIndexRequest $request): JsonResponse
     {
+        if (!Schema::hasTable('activity_log')) {
+            $perPage = (int) ($request->validated()['per_page'] ?? 25);
+            $perPage = min(100, max(1, $perPage));
+            $paginator = new LengthAwarePaginator([], 0, $perPage, 1);
+
+            return self::paginated($paginator, 'api.security.audit_logs_list_success');
+        }
+
         $filters = $request->validated();
 
         $query = Activity::query()
@@ -68,6 +78,10 @@ class SecurityAuditLogController extends Controller
 
     public function show(int $activity_log): JsonResponse
     {
+        if (!Schema::hasTable('activity_log')) {
+            return self::success(null, 'api.security.audit_log_one_success');
+        }
+
         $activity = Activity::query()
             ->with('causer')
             ->findOrFail($activity_log);

@@ -4,8 +4,10 @@ namespace Modules\CommunicationModule\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Modules\AssesmentModule\Models\Attempt;
 use Modules\AssesmentModule\Models\CourseCertificate;
 use Modules\CommunicationModule\Http\Requests\Notification\StoreNotificationRequest;
@@ -27,6 +29,10 @@ class NotificationController extends Controller
 
     public function index()
     {
+        if (!Schema::hasTable('notifications')) {
+            return self::paginated(new LengthAwarePaginator([], 0, 20, 1), 'Notifications fetched successfully.');
+        }
+
         $query = DatabaseNotification::query()
             ->where('notifiable_id', Auth::id())
             ->orderByDesc('created_at');
@@ -40,6 +46,10 @@ class NotificationController extends Controller
 
     public function unreadCount()
     {
+        if (!Schema::hasTable('notifications')) {
+            return self::success(['unread_count' => 0], 'Unread notifications count fetched successfully.');
+        }
+
         $count = DatabaseNotification::query()
             ->where('notifiable_id', Auth::id())
             ->whereNull('read_at')
