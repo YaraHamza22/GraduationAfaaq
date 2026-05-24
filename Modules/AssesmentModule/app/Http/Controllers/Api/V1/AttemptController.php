@@ -71,6 +71,36 @@ class AttemptController extends Controller
     }
 
     /**
+     * Open the student's active workspace for a quiz in one request.
+     *
+     * This endpoint finds the latest pending/in-progress attempt for the
+     * authenticated student and quiz, or creates+starts one if needed,
+     * then returns the attempt with quiz questions and saved answers.
+     */
+    public function workspace(Request $request, string|int $quiz)
+    {
+        try {
+            if (!is_numeric($quiz)) {
+                return self::error('Invalid quiz id. It must be numeric.', 422);
+            }
+
+            $studentId = (int) ($request->input('student_id') ?: auth()->id());
+            if ($studentId <= 0) {
+                return self::error('Student not authenticated.', 401);
+            }
+
+            $data = $this->attemptService->workspace((int) $quiz, $studentId);
+            if (($data['success'] ?? false) !== true) {
+                return self::error($data['message'] ?? 'Failed to open quiz workspace.', $data['code'] ?? 422, $data['error'] ?? null);
+            }
+
+            return self::success($data, 'Quiz workspace opened successfully.', $data['code'] ?? 200);
+        } catch (Throwable $e) {
+            return self::error($e->getMessage(), 500);
+        }
+    }
+
+    /**
      * Display the specified attempt.
      *
      * Supports both a real attempt id and, as a compatibility fallback,

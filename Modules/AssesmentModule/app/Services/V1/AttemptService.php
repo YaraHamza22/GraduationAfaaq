@@ -14,6 +14,72 @@ use Throwable;
 
 class AttemptService extends BaseService
 {
+    public function workspace(int $quizId, int $studentId): array
+    {
+        try {
+            $attempt = DB::transaction(function () use ($quizId, $studentId) {
+                $quiz = Quiz::query()
+                    ->with(['questions.options'])
+                    ->findOrFail($quizId);
+
+                $attemptQuery = Attempt::query()
+                    ->where('quiz_id', $quiz->id)
+                    ->where('student_id', $studentId)
+                    ->lockForUpdate();
+
+                $existing = (clone $attemptQuery)
+                    ->whereIn('status', [
+                        AttemptStatus::IN_PROGRESS->value,
+                        AttemptStatus::PENDING->value,
+                    ])
+                    ->orderByDesc('id')
+                    ->first();
+
+                if (! $existing) {
+                    $passed = (clone $attemptQuery)
+                        ->where('status', AttemptStatus::GRADED->value)
+                        ->where('is_passed', true)
+                        ->exists();
+
+                    if ($passed) {
+                        throw new \RuntimeException('You already passed this quiz.');
+                    }
+
+                    $count = (clone $attemptQuery)->count();
+                    if ($count >= 3) {
+                        throw new \RuntimeException('Max attempts reached.');
+                    }
+
+                    $attemptNumber = ((clone $attemptQuery)->max('attempt_number') ?? 0) + 1;
+                    $existing = Attempt::query()->create([
+                        'quiz_id' => $quiz->id,
+                        'student_id' => $studentId,
+                        'attempt_number' => $attemptNumber,
+                        'status' => AttemptStatus::PENDING->value,
+                    ]);
+                }
+
+                if ($existing->status === AttemptStatus::PENDING) {
+                    $existing->update([
+                        'status' => AttemptStatus::IN_PROGRESS,
+                        'start_at' => $existing->start_at ?? now(),
+                        'ends_at' => $existing->ends_at ?? ($quiz->duration_minutes ? now()->addMinutes((int) $quiz->duration_minutes) : null),
+                    ]);
+                }
+
+                return $existing->fresh(['quiz.questions.options', 'answers']);
+            });
+
+            return $this->ok('Quiz workspace opened.', $attempt);
+        } catch (\RuntimeException $e) {
+            return $this->fail($e->getMessage(), null, 422);
+        } catch (QueryException $e) {
+            return $this->fail('Failed to open quiz workspace due to a concurrent request.', $e, 409);
+        } catch (Throwable $e) {
+            return $this->fail('Failed to open quiz workspace.', $e);
+        }
+    }
+
     public function index(array $filters = [], int $perPage = 15): array
     {
         try {
