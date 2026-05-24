@@ -101,7 +101,7 @@ class AttemptResource extends JsonResource
             'answers' => AnswerResource::collection($this->whenLoaded('answers')),
 
             /** @var \Illuminate\Http\Resources\Json\AnonymousResourceCollection $this->media The collection of media associated with this attempt */
-            'media' => MediaResource::collection($this->whenLoaded('media')),
+            'media' => MediaResources::collection($this->whenLoaded('media')),
         ];
     }
 }
