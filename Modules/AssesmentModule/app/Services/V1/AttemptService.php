@@ -22,35 +22,39 @@ class AttemptService extends BaseService
                     ->with(['questions.options'])
                     ->findOrFail($quizId);
 
-                $attemptQuery = Attempt::query()
+                $attempts = Attempt::query()
                     ->where('quiz_id', $quiz->id)
                     ->where('student_id', $studentId)
-                    ->lockForUpdate();
+                    ->lockForUpdate()
+                    ->get();
 
-                $existing = (clone $attemptQuery)
-                    ->whereIn('status', [
-                        AttemptStatus::IN_PROGRESS->value,
-                        AttemptStatus::PENDING->value,
-                    ])
-                    ->orderByDesc('id')
+                $existing = $attempts
+                    ->filter(function (Attempt $attempt) {
+                        $status = $attempt->status?->value ?? (string) $attempt->status;
+                        return in_array($status, [
+                            AttemptStatus::IN_PROGRESS->value,
+                            AttemptStatus::PENDING->value,
+                        ], true);
+                    })
+                    ->sortByDesc('id')
                     ->first();
 
                 if (! $existing) {
-                    $passed = (clone $attemptQuery)
-                        ->where('status', AttemptStatus::GRADED->value)
-                        ->where('is_passed', true)
-                        ->exists();
+                    $passed = $attempts->contains(function (Attempt $attempt) {
+                        $status = $attempt->status?->value ?? (string) $attempt->status;
+                        return $status === AttemptStatus::GRADED->value && $attempt->is_passed === true;
+                    });
 
                     if ($passed) {
                         throw new \RuntimeException('You already passed this quiz.');
                     }
 
-                    $count = (clone $attemptQuery)->count();
+                    $count = $attempts->count();
                     if ($count >= 3) {
                         throw new \RuntimeException('Max attempts reached.');
                     }
 
-                    $attemptNumber = ((clone $attemptQuery)->max('attempt_number') ?? 0) + 1;
+                    $attemptNumber = ((int) $attempts->max('attempt_number')) + 1;
                     $existing = Attempt::query()->create([
                         'quiz_id' => $quiz->id,
                         'student_id' => $studentId,
@@ -111,38 +115,40 @@ class AttemptService extends BaseService
             $studentId = $data['student_id'] ?? Auth::id();
 
             $attempt = DB::transaction(function () use ($quiz, $studentId) {
-                $attemptQuery = Attempt::query()
+                $attempts = Attempt::query()
                     ->where('quiz_id', $quiz->id)
                     ->where('student_id', $studentId)
-                    ->lockForUpdate();
+                    ->lockForUpdate()
+                    ->get();
 
-                $passed = (clone $attemptQuery)
-                    ->where('status', AttemptStatus::GRADED->value)
-                    ->where('is_passed', true)
-                    ->exists();
+                $passed = $attempts->contains(function (Attempt $attempt) {
+                    $status = $attempt->status?->value ?? (string) $attempt->status;
+                    return $status === AttemptStatus::GRADED->value && $attempt->is_passed === true;
+                });
 
                 if ($passed) {
                     return null;
                 }
 
-                $open = (clone $attemptQuery)
-                    ->whereIn('status', [
+                $open = $attempts->contains(function (Attempt $attempt) {
+                    $status = $attempt->status?->value ?? (string) $attempt->status;
+                    return in_array($status, [
                         AttemptStatus::PENDING->value,
                         AttemptStatus::IN_PROGRESS->value,
                         AttemptStatus::SUBMITTED->value,
-                    ])
-                    ->exists();
+                    ], true);
+                });
 
                 if ($open) {
                     throw new \RuntimeException('You already have an open attempt.');
                 }
 
-                $count = (clone $attemptQuery)->count();
+                $count = $attempts->count();
                 if ($count >= 3) {
                     throw new \RuntimeException('Max attempts reached.');
                 }
 
-                $num = ((clone $attemptQuery)->max('attempt_number') ?? 0) + 1;
+                $num = ((int) $attempts->max('attempt_number')) + 1;
 
                 return Attempt::query()->create([
                     'quiz_id' => $quiz->id,
