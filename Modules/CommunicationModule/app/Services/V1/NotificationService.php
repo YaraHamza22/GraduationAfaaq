@@ -143,6 +143,8 @@ class NotificationService
             return false;
         }
 
+        $attempt->loadMissing(['quiz:id,title', 'student:id,name,email']);
+
         return $this->sendToUsers([
             'user_ids' => [(int) $attempt->student_id],
             'title' => 'Assessment result published',
@@ -155,9 +157,53 @@ class NotificationService
             'data' => [
                 'attempt_id' => $attempt->id,
                 'quiz_id' => $attempt->quiz_id,
+                'quiz_title' => data_get($attempt->quiz, 'title'),
                 'score' => $attempt->score,
                 'is_passed' => (bool) $attempt->is_passed,
                 'graded_at' => optional($attempt->graded_at)->toIso8601String(),
+            ],
+        ]) > 0;
+    }
+
+    public function sendInstructorGradingCompletedNotification(Attempt $attempt): bool
+    {
+        $attempt->loadMissing(['quiz:id,instructor_id,title', 'student:id,name,email', 'grader:id,name,email']);
+
+        $instructorId = (int) data_get($attempt->quiz, 'instructor_id', 0);
+        if ($instructorId <= 0) {
+            return false;
+        }
+
+        $studentLabel = data_get($attempt->student, 'name')
+            ?: data_get($attempt->student, 'email')
+            ?: 'Student #' . $attempt->student_id;
+
+        $quizTitle = data_get($attempt->quiz, 'title.en');
+        if (! $quizTitle) {
+            $rawTitle = data_get($attempt->quiz, 'title');
+            $quizTitle = is_array($rawTitle)
+                ? (reset($rawTitle) ?: ('Quiz #' . $attempt->quiz_id))
+                : ($rawTitle ?: ('Quiz #' . $attempt->quiz_id));
+        }
+
+        return $this->sendToUsers([
+            'user_ids' => [$instructorId],
+            'title' => 'Quiz result ready',
+            'body' => sprintf(
+                'Quiz "%s" has a graded result for %s.',
+                (string) $quizTitle,
+                $studentLabel
+            ),
+            'type' => 'assessment.instructor_result',
+            'data' => [
+                'attempt_id' => $attempt->id,
+                'quiz_id' => $attempt->quiz_id,
+                'student_id' => $attempt->student_id,
+                'student_name' => data_get($attempt->student, 'name'),
+                'score' => $attempt->score,
+                'is_passed' => (bool) $attempt->is_passed,
+                'graded_at' => optional($attempt->graded_at)->toIso8601String(),
+                'target_section' => 'results',
             ],
         ]) > 0;
     }

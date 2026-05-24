@@ -11,7 +11,9 @@ use Modules\AssesmentModule\Http\Requests\AttemptRequest\SubmitAttemptRequest;
 use Modules\AssesmentModule\Http\Requests\AttemptRequest\StoreAttemptRequest;
 use Modules\AssesmentModule\Http\Requests\AttemptRequest\UpdateAttemptRequest;
 use Modules\AssesmentModule\Models\Attempt;        
+use Modules\AssesmentModule\Models\Quiz;
 use Modules\AssesmentModule\Services\V1\AttemptService;
+use Modules\AssesmentModule\Transformers\AttemptResource;
 use Throwable;
 
 /**
@@ -32,13 +34,13 @@ class AttemptController extends Controller
     public function __construct(AttemptService $attemptService)
     {
         $this->attemptService = $attemptService;
-        $this->middleware('role_or_permission:super-admin|student|list-attempts,api')->only('index');
-        $this->middleware('role_or_permission:super-admin|student|show-attempt,api')->only('show');
+        $this->middleware('role_or_permission:super-admin|admin|instructor|student|list-attempts,api')->only('index', 'results');
+        $this->middleware('role_or_permission:super-admin|admin|instructor|student|show-attempt,api')->only('show');
         $this->middleware('role_or_permission:super-admin|student|create-attempt,api')->only('store');
         $this->middleware('role_or_permission:super-admin|student|update-attempt,api')->only('update');
         $this->middleware('role_or_permission:super-admin|student|delete-attempt,api')->only('destroy');
         $this->middleware('role_or_permission:super-admin|student|submit-attempt,api')->only('start', 'submit');
-        $this->middleware('role_or_permission:super-admin|student|grade-attempt,api')->only('grade');
+        $this->middleware('role_or_permission:super-admin|admin|instructor|grade-attempt,api')->only('grade');
     }
 
     /**
@@ -53,20 +55,64 @@ class AttemptController extends Controller
             $filters = $request->only([
                 'quiz_id', 'student_id', 'status', 'is_passed', 'graded_by', 'attempt_number',
                 'start_at', 'ends_at', 'min_score', 'max_score', 'submitted_at', 'graded_at',
-                'min_time_spent', 'max_time_spent', 'order'
+                'min_time_spent', 'max_time_spent', 'order', 'student_query'
             ]);
+
+            $user = auth()->user();
+            if ($user && $user->hasRole('student') && ! $user->hasAnyRole(['super-admin', 'admin', 'instructor'])) {
+                $filters['student_id'] = $user->id;
+            }
 
             $perPage = (int) $request->integer('per_page', 15);
             $data = $this->attemptService->index($filters, $perPage);
 
-            if ($data instanceof LengthAwarePaginator) {
-                return self::paginated($data, 'Operation successful', 200);
+            if (($data['success'] ?? false) !== true) {
+                return self::error($data['message'] ?? 'Failed to fetch attempts.', $data['code'] ?? 400, $data['error'] ?? null);
             }
 
-            return self::success($data, 'Operation successful', 200);
+            if (($data['data'] ?? null) instanceof LengthAwarePaginator) {
+                $paginator = $data['data'];
+                $collection = AttemptResource::collection($paginator->getCollection())->resolve();
+                $paginator->setCollection(collect($collection));
+                return self::paginated($paginator, $data['message'] ?? 'Operation successful', $data['code'] ?? 200);
+            }
+
+            return self::success($data['data'] ?? null, $data['message'] ?? 'Operation successful', $data['code'] ?? 200);
 
         } catch (Throwable $e) {
             return self::error($e->getMessage(), 500);
+        }
+    }
+
+    public function results(Request $request, Quiz $quiz)
+    {
+        try {
+            $filters = $request->only([
+                'student_id',
+                'status',
+                'is_passed',
+                'graded_by',
+                'attempt_number',
+                'min_score',
+                'max_score',
+                'submitted_at',
+                'graded_at',
+                'min_time_spent',
+                'max_time_spent',
+                'order',
+                'student_query',
+            ]);
+
+            $perPage = (int) $request->integer('per_page', 15);
+            $res = $this->attemptService->resultsForQuiz($quiz, $filters, $perPage, auth()->user());
+
+            if (($res['success'] ?? false) !== true) {
+                return self::error($res['message'] ?? 'Failed to fetch quiz results.', $res['code'] ?? 400, $res['error'] ?? null);
+            }
+
+            return self::success($res['data'] ?? null, $res['message'] ?? 'Quiz results fetched successfully.', $res['code'] ?? 200);
+        } catch (Throwable $e) {
+            return self::error('Failed to fetch quiz results.', 500, $e->getMessage());
         }
     }
 
@@ -280,4 +326,3 @@ public function submit(SubmitAttemptRequest $request, Attempt $attempt)
     }
 
 }
-

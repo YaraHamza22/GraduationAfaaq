@@ -71,6 +71,32 @@ class AttemptResource extends JsonResource
             /** @var int|null $this->graded_by The ID of the user who graded the attempt */
             'graded_by' => $this->graded_by,
 
+            'student' => $this->whenLoaded('student', function () {
+                return $this->student ? [
+                    'id' => $this->student->id,
+                    'name' => $this->student->name,
+                    'email' => $this->student->email,
+                ] : null;
+            }),
+
+            'grader' => $this->whenLoaded('grader', function () {
+                return $this->grader ? [
+                    'id' => $this->grader->id,
+                    'name' => $this->grader->name,
+                    'email' => $this->grader->email,
+                ] : null;
+            }),
+
+            'quiz' => $this->whenLoaded('quiz', function () {
+                return $this->quiz ? [
+                    'id' => $this->quiz->id,
+                    'title' => $this->quiz->title,
+                    'passing_score' => $this->quiz->passing_score,
+                    'max_score' => $this->quiz->max_score,
+                    'instructor_id' => $this->quiz->instructor_id,
+                ] : null;
+            }),
+
             /** @var \Illuminate\Http\Resources\Json\AnonymousResourceCollection $this->answers The collection of answers for this attempt */
             'answers' => AnswerResource::collection($this->whenLoaded('answers')),
 

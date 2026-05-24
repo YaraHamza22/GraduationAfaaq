@@ -4,10 +4,14 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Notifications\DatabaseNotification;
 use Modules\AssesmentModule\Models\Attempt;
+use Modules\AssesmentModule\Models\Answer;
+use Modules\AssesmentModule\Models\Question;
 use Modules\AssesmentModule\Models\Quiz;
 use Modules\AssesmentModule\Enums\AttemptStatus;
 use Modules\AssesmentModule\Enums\AssesmentType;
+use Modules\AssesmentModule\Enums\QuestionType;
 use Modules\AssesmentModule\Enums\QuizStatus;
 use Modules\AssesmentModule\Enums\QuizType;
 use Modules\LearningModule\Models\Course;
@@ -157,7 +161,93 @@ class AssessmentFlowTest extends TestCase
         $this->assertSame(AttemptStatus::GRADED->value, $gradeResponse->json('data.data.status'));
     }
 
-    private function createApiUserWithPermissions(array $permissions): User
+    public function test_instructor_can_fetch_quiz_results_with_student_name(): void
+    {
+        $instructor = $this->createApiUserWithPermissions([
+            'list-attempts',
+        ], 'instructor');
+        $student = User::factory()->create();
+        $quiz = $this->createCourseQuiz($instructor);
+
+        Attempt::query()->create([
+            'quiz_id' => $quiz->id,
+            'student_id' => $student->id,
+            'attempt_number' => 1,
+            'status' => AttemptStatus::SUBMITTED->value,
+            'score' => 0,
+            'submitted_at' => now(),
+        ]);
+
+        $response = $this->actingAs($instructor, 'api')
+            ->getJson("/api/v1/quizzes/{$quiz->id}/results?status=submitted");
+
+        $response->assertOk();
+        $response->assertJsonPath('data.quiz.id', $quiz->id);
+        $response->assertJsonPath('data.summary.submitted_count', 1);
+        $response->assertJsonPath('data.results.0.student.id', $student->id);
+        $response->assertJsonPath('data.results.0.student.name', $student->name);
+    }
+
+    public function test_grading_creates_student_and_instructor_notifications(): void
+    {
+        $instructor = $this->createApiUserWithPermissions([
+            'grade-attempt',
+        ], 'instructor');
+        $student = User::factory()->create();
+        $quiz = $this->createCourseQuiz($instructor);
+
+        $question = Question::query()->create([
+            'quiz_id' => $quiz->id,
+            'type' => QuestionType::SHORT_ANSWER->value,
+            'question_text' => ['en' => 'Explain polymorphism'],
+            'point' => 10,
+            'order_index' => 1,
+            'is_required' => true,
+        ]);
+
+        $attempt = Attempt::query()->create([
+            'quiz_id' => $quiz->id,
+            'student_id' => $student->id,
+            'attempt_number' => 1,
+            'status' => AttemptStatus::SUBMITTED->value,
+            'submitted_at' => now(),
+        ]);
+
+        Answer::query()->create([
+            'attempt_id' => $attempt->id,
+            'question_id' => $question->id,
+            'answer_text' => ['en' => 'Runtime method dispatch'],
+            'question_score' => 0,
+        ]);
+
+        $this->actingAs($instructor, 'api')
+            ->postJson("/api/v1/attempts/{$attempt->id}/grade", [
+                'answers' => [
+                    [
+                        'question_id' => $question->id,
+                        'earned_score' => 9,
+                        'is_correct' => true,
+                    ],
+                ],
+            ])
+            ->assertOk();
+
+        $studentNotification = DatabaseNotification::query()
+            ->where('notifiable_id', $student->id)
+            ->latest()
+            ->first();
+        $instructorNotification = DatabaseNotification::query()
+            ->where('notifiable_id', $instructor->id)
+            ->latest()
+            ->first();
+
+        $this->assertNotNull($studentNotification);
+        $this->assertNotNull($instructorNotification);
+        $this->assertStringContainsString('Assessment result published', (string) data_get($studentNotification?->data, 'title'));
+        $this->assertSame('results', data_get($instructorNotification?->data, 'data.target_section'));
+    }
+
+    private function createApiUserWithPermissions(array $permissions, ?string $roleName = null): User
     {
         $user = User::factory()->create();
 
@@ -169,7 +259,7 @@ class AssessmentFlowTest extends TestCase
         }
 
         $role = Role::firstOrCreate([
-            'name' => 'assessment-tester-'.md5(implode(',', $permissions)),
+            'name' => $roleName ?: 'assessment-tester-'.md5(implode(',', $permissions)),
             'guard_name' => 'api',
         ]);
 

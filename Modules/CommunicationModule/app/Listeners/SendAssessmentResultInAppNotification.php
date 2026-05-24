@@ -14,5 +14,6 @@ class SendAssessmentResultInAppNotification
     public function handle(AttemptGraded $event): void
     {
         $this->notificationService->sendAssessmentResultNotification($event->attempt);
+        $this->notificationService->sendInstructorGradingCompletedNotification($event->attempt);
     }
 }

@@ -31,6 +31,7 @@ Route::middleware(['auth:api'])->prefix('v1')->group(function () {
     */
     Route::get('attempts/workspace/{quiz}', [AttemptController::class, 'workspace']);
     Route::apiResource('attempts', AttemptController::class);
+    Route::get('quizzes/{quiz}/results', [AttemptController::class, 'results']);
     Route::post('attempts/{attempt}/answers/bulk', [AnswerController::class, 'bulkStore']);
     Route::post('attempts/{attempt}/start', [AttemptController::class, 'start']);
     Route::post('attempts/{attempt}/submit', [AttemptController::class, 'submit']);

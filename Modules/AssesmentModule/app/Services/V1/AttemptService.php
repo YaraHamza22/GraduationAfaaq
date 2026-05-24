@@ -3,6 +3,8 @@
 namespace Modules\AssesmentModule\Services\V1;
 
 use Illuminate\Database\QueryException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Modules\AssesmentModule\Enums\AttemptStatus;
@@ -10,6 +12,7 @@ use Modules\AssesmentModule\Enums\QuestionType;
 use Modules\AssesmentModule\Models\Attempt;
 use Modules\AssesmentModule\Models\Answer;
 use Modules\AssesmentModule\Models\Quiz;
+use Modules\AssesmentModule\Transformers\AttemptResource;
 use Throwable;
 
 class AttemptService extends BaseService
@@ -87,7 +90,21 @@ class AttemptService extends BaseService
     public function index(array $filters = [], int $perPage = 15): array
     {
         try {
-            $query = Attempt::query()->with(['quiz', 'answers']);
+            $query = Attempt::query()
+                ->with([
+                    'quiz:id,instructor_id,title,passing_score,max_score',
+                    'student:id,name,email',
+                    'grader:id,name,email',
+                ])
+                ->when(
+                    $filters['student_query'] ?? null,
+                    fn ($q, $term) => $q->whereHas('student', function ($studentQuery) use ($term) {
+                        $studentQuery
+                            ->where('name', 'like', '%' . trim((string) $term) . '%')
+                            ->orWhere('email', 'like', '%' . trim((string) $term) . '%');
+                    })
+                )
+                ->filter($filters);
 
             $data = $query->paginate($perPage);
 
@@ -100,11 +117,70 @@ class AttemptService extends BaseService
     public function show(Attempt $attempt): array
     {
         try {
-            $attempt->load(['quiz.questions.options', 'answers']);
+            $attempt->load(['quiz.questions.options', 'answers', 'student:id,name,email', 'grader:id,name,email']);
 
             return $this->ok('Attempt fetched successfully.', $attempt);
         } catch (Throwable $e) {
             return $this->fail('Failed to fetch attempt.', $e);
+        }
+    }
+
+    public function resultsForQuiz(Quiz $quiz, array $filters = [], int $perPage = 15, ?Authenticatable $viewer = null): array
+    {
+        try {
+            if ($viewer && ! $viewer->hasAnyRole(['super-admin', 'admin'])) {
+                if ((int) $quiz->instructor_id !== (int) $viewer->id) {
+                    return $this->fail('You are not allowed to view results for this quiz.', null, 403);
+                }
+            }
+
+            $filters['quiz_id'] = $quiz->id;
+            $filters['order'] = $filters['order'] ?? 'latest';
+
+            $query = Attempt::query()
+                ->with([
+                    'student:id,name,email',
+                    'grader:id,name,email',
+                    'quiz:id,instructor_id,title,passing_score,max_score',
+                ])
+                ->withCount('answers')
+                ->filter($filters)
+                ->when(
+                    $filters['student_query'] ?? null,
+                    fn ($q, $term) => $q->whereHas('student', function ($studentQuery) use ($term) {
+                        $studentQuery
+                            ->where('name', 'like', '%' . trim((string) $term) . '%')
+                            ->orWhere('email', 'like', '%' . trim((string) $term) . '%');
+                    })
+                );
+
+            $paginator = $query->paginate($perPage);
+            $results = AttemptResource::collection($paginator->getCollection())->resolve();
+
+            return $this->ok('Quiz results fetched successfully.', [
+                'quiz' => [
+                    'id' => $quiz->id,
+                    'title' => $quiz->title,
+                    'passing_score' => $quiz->passing_score,
+                    'max_score' => $quiz->max_score,
+                    'instructor_id' => $quiz->instructor_id,
+                ],
+                'summary' => [
+                    'submitted_count' => Attempt::query()->where('quiz_id', $quiz->id)->where('status', AttemptStatus::SUBMITTED->value)->count(),
+                    'graded_count' => Attempt::query()->where('quiz_id', $quiz->id)->where('status', AttemptStatus::GRADED->value)->count(),
+                    'results_count' => $paginator->total(),
+                ],
+                'results' => $results,
+                'pagination' => [
+                    'total' => $paginator->total(),
+                    'count' => count($paginator),
+                    'per_page' => $paginator->perPage(),
+                    'current_page' => $paginator->currentPage(),
+                    'total_pages' => $paginator->lastPage(),
+                ],
+            ]);
+        } catch (Throwable $e) {
+            return $this->fail('Failed to fetch quiz results.', $e);
         }
     }
 
@@ -269,36 +345,77 @@ class AttemptService extends BaseService
 
     public function grade(Attempt $attempt, array $data): array
     {
-        if ($attempt->status !== AttemptStatus::SUBMITTED) {
-            return $this->fail('Invalid state.', null, 422);
-        }
+        try {
+            $attempt->loadMissing([
+                'quiz:id,instructor_id,passing_score,max_score,title',
+                'quiz.questions:id,quiz_id,point',
+                'student:id,name,email',
+                'answers',
+            ]);
 
-        DB::transaction(function () use ($attempt, $data) {
-
-            foreach ($data['answers'] as $ans) {
-
-                $answer = $attempt->answers()
-                    ->where('question_id', $ans['question_id'])
-                    ->first();
-
-                $answer->update([
-                    'question_score' => $ans['earned_score'],
-                    'is_correct' => $ans['is_correct'],
-                    'graded_at' => now(),
-                ]);
+            if ($attempt->status !== AttemptStatus::SUBMITTED) {
+                return $this->fail('Only submitted attempts can be graded.', null, 422);
             }
 
-            $score = $attempt->answers()->sum('question_score');
+            $gradedBy = Auth::id();
+            $questions = $attempt->quiz->questions->keyBy('id');
+            $providedQuestionIds = collect($data['answers'])->pluck('question_id');
 
-            $attempt->update([
-                'status' => AttemptStatus::GRADED,
-                'score' => $score,
-                'is_passed' => $score >= $attempt->quiz->passing_score,
-                'graded_at' => now(),
-            ]);
-        });
+            if ($providedQuestionIds->duplicates()->isNotEmpty()) {
+                return $this->fail('Each question can only be graded once per request.', null, 422);
+            }
 
-        return $this->ok('Graded.', $attempt->fresh());
+            DB::transaction(function () use ($attempt, $data, $questions, $gradedBy) {
+                foreach ($data['answers'] as $ans) {
+                    $question = $questions->get((int) $ans['question_id']);
+                    if (! $question) {
+                        throw new ModelNotFoundException('Question does not belong to this quiz.');
+                    }
+
+                    $answer = $attempt->answers()
+                        ->where('question_id', $ans['question_id'])
+                        ->first();
+
+                    if (! $answer) {
+                        throw new ModelNotFoundException('Answer not found for the provided question.');
+                    }
+
+                    $earnedScore = (int) $ans['earned_score'];
+                    if ($earnedScore > (int) $question->point) {
+                        throw new \InvalidArgumentException(sprintf(
+                            'Earned score for question %d cannot exceed the question point value of %d.',
+                            $question->id,
+                            $question->point
+                        ));
+                    }
+
+                    $answer->update([
+                        'question_score' => $earnedScore,
+                        'is_correct' => (bool) $ans['is_correct'],
+                        'graded_by' => $gradedBy,
+                        'graded_at' => now(),
+                    ]);
+                }
+
+                $score = (int) $attempt->answers()->sum('question_score');
+
+                $attempt->update([
+                    'status' => AttemptStatus::GRADED,
+                    'score' => $score,
+                    'is_passed' => $score >= $attempt->quiz->passing_score,
+                    'graded_by' => $gradedBy,
+                    'graded_at' => now(),
+                ]);
+            });
+
+            return $this->ok('Graded.', $attempt->fresh(['quiz', 'student', 'grader', 'answers']));
+        } catch (ModelNotFoundException $e) {
+            return $this->fail($e->getMessage(), $e, 404);
+        } catch (\InvalidArgumentException $e) {
+            return $this->fail($e->getMessage(), $e, 422);
+        } catch (Throwable $e) {
+            return $this->fail('Failed to grade attempt.', $e);
+        }
     }
 
     public function destroy(Attempt $attempt): array
