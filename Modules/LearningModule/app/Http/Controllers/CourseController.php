@@ -124,11 +124,7 @@ class CourseController extends Controller
         }
 
         if ($request->is('api/v1/courses')) {
-            return $query
-                ->byStatus(CourseStatus::PUBLISHED->value)
-                ->whereHas('courseCategory', function ($categoryQuery) {
-                    $categoryQuery->where('is_active', true);
-                });
+            return $query->enrollable();
         }
 
         return $query;

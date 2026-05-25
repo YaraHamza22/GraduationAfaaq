@@ -133,8 +133,7 @@ class CourseBuilder extends Builder
      */
     public function published(): self
     {
-        return $this->where('status', CourseStatus::PUBLISHED->value)
-            ->whereNotNull('published_at');
+        return $this->where('status', CourseStatus::PUBLISHED->value);
     }
 
     /**
@@ -175,7 +174,7 @@ class CourseBuilder extends Builder
      */
     public function enrollable(): self
     {
-        return $this->published()
+        return $this->byStatus(CourseStatus::PUBLISHED->value)
             ->whereHas('courseCategory', function ($query) {
                 $query->where('is_active', true);
             });

@@ -416,7 +416,7 @@ class CourseService
     public function isAvailableForEnrollment(Course $course): bool
     {
         // Course must be published
-        if ($course->status !== CourseStatus::PUBLISHED->value || !$course->published_at) {
+        if ($course->status !== CourseStatus::PUBLISHED->value) {
             return false;
         }
 
