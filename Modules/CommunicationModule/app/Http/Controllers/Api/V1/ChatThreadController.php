@@ -10,6 +10,7 @@ use Modules\CommunicationModule\Models\ChatMessage;
 use Modules\CommunicationModule\Models\ChatParticipant;
 use Modules\CommunicationModule\Models\ChatThread;
 use Modules\CommunicationModule\Services\V1\ChatService;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class ChatThreadController extends Controller
 {
@@ -57,20 +58,12 @@ class ChatThreadController extends Controller
 
     public function addParticipant(AddChatParticipantRequest $request, ChatThread $chatThread)
     {
-        $this->authorize('manage', $chatThread);
-        $participant = $this->chatService->addParticipant($chatThread, $request->validated());
-        return self::success($participant, 'Participant added successfully.', 201);
+        throw new HttpException(422, 'Chat threads are limited to one student and one instructor.');
     }
 
     public function removeParticipant(ChatThread $chatThread, int $userId)
     {
-        $this->authorize('manage', $chatThread);
-        ChatParticipant::query()
-            ->where('chat_thread_id', $chatThread->id)
-            ->where('user_id', $userId)
-            ->delete();
-
-        return self::success(null, 'Participant removed successfully.');
+        throw new HttpException(422, 'Chat threads are limited to one student and one instructor.');
     }
 
     public function unreadCount()

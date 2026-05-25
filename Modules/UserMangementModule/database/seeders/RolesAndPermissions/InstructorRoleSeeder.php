@@ -79,6 +79,13 @@ class InstructorRoleSeeder extends Seeder
             'list-posts_forum',
             'show-post_forum',
 
+            //chat_message permissions
+            'create-chat_message',
+            'update-chat_message',
+            'delete-chat_message',
+            'list-chat_messages',
+            'show-chat_message',
+
            
         ];
         $role = Role::firstOrCreate(['name' => 'instructor', 'guard_name' => 'api']);

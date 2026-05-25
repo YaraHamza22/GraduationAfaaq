@@ -14,7 +14,7 @@ class StoreChatThreadRequest extends FormRequest
         return [
             'title' => ['nullable', 'string', 'max:255'],
             'course_id' => ['nullable', 'integer', 'exists:courses,course_id'],
-            'participant_ids' => ['required', 'array', 'min:1'],
+            'participant_ids' => ['required', 'array', 'size:1'],
             'participant_ids.*' => ['integer', 'exists:users,id'],
         ];
     }
