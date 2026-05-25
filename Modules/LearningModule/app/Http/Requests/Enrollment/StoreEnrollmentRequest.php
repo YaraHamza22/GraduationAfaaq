@@ -120,6 +120,10 @@ class StoreEnrollmentRequest extends ApiFormRequest
      */
     protected function prepareForValidation(): void
     {
+        if (! $this->has('learner_id') && auth()->check()) {
+            $this->merge(['learner_id' => auth()->id()]);
+        }
+
         // Convert learner_id and course_id to integers if provided
         if ($this->has('learner_id')) {
             $this->merge(['learner_id' => (int)$this->learner_id]);

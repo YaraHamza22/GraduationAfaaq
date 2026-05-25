@@ -78,7 +78,14 @@ return Application::configure(basePath: dirname(__DIR__))
                 ],
                 default => [
                     'statusCode' => $e instanceof HttpExceptionInterface ? $e->getStatusCode() : 500,
-                    'message' => app()->isProduction() ? 'An unexpected server error occured' : $e->getMessage()
+                    'message' => (
+                        $e instanceof HttpExceptionInterface
+                        && $e->getStatusCode() >= 400
+                        && $e->getStatusCode() < 500
+                        && filled($e->getMessage())
+                    )
+                        ? $e->getMessage()
+                        : (app()->isProduction() ? 'An unexpected server error occurred' : $e->getMessage())
 
                 ]
 

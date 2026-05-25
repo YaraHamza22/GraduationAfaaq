@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\App;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Database\Eloquent\Builder;
 use Modules\LearningModule\Models\Course;
 use Modules\LearningModule\Services\CourseService;
 use Modules\LearningModule\Http\Resources\CourseResource;
@@ -74,7 +75,7 @@ class CourseController extends Controller
     {
         try {
             $getCourses = function () use ($request) {
-                $query = Course::query();
+                $query = $this->buildIndexQuery($request);
                 return $query
                     ->filterByRequest($request)
                     ->withRelations()
@@ -86,7 +87,7 @@ class CourseController extends Controller
             // Only use cache when filters are applied; "list all" (no params) always hits DB
             $queryString = $request->getQueryString();
             if ($queryString !== null && $queryString !== '') {
-                $cacheKey = 'courses.index.' . md5($queryString);
+                $cacheKey = 'courses.index.' . md5($request->path() . '?' . $queryString);
                 $courses = $this->remember($cacheKey, 900, $getCourses, ['courses']);
             } else {
                 $courses = $getCourses();
@@ -100,6 +101,33 @@ class CourseController extends Controller
             ]);
             throw new Exception('Unable to retrieve courses at this time. Please try again later.', 500);
         }
+    }
+
+    /**
+     * Build the base course query for the current route context.
+     */
+    protected function buildIndexQuery(FilterCoursesRequest $request): Builder
+    {
+        $query = Course::query();
+        $user = Auth::user();
+
+        if (! $user || ! method_exists($user, 'hasRole') || ! $user->hasRole('student')) {
+            return $query;
+        }
+
+        if ($request->is('api/v1/my-learning')) {
+            return $query->whereHas('enrollments', function ($enrollmentQuery) use ($user) {
+                $enrollmentQuery
+                    ->where('learner_id', $user->id)
+                    ->whereIn('enrollment_status', ['active', 'completed']);
+            });
+        }
+
+        if ($request->is('api/v1/courses')) {
+            return $query->enrollable();
+        }
+
+        return $query;
     }
 
     /**
