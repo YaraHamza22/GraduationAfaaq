@@ -28,4 +28,16 @@ class CommunicationModuleApiTest extends TestCase
 
         $this->assertTrue(true);
     }
+
+    public function test_notifications_preflight_returns_cors_headers(): void
+    {
+        $response = $this->call('OPTIONS', '/api/v1/notifications', server: [
+            'HTTP_ORIGIN' => 'https://yarahamza22.github.io',
+            'HTTP_ACCESS_CONTROL_REQUEST_METHOD' => 'GET',
+            'HTTP_ACCESS_CONTROL_REQUEST_HEADERS' => 'Authorization, Content-Type',
+        ]);
+
+        $response->assertNoContent();
+        $response->assertHeader('Access-Control-Allow-Origin', 'https://yarahamza22.github.io');
+    }
 }
