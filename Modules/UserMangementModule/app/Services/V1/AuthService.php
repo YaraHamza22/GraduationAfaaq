@@ -26,7 +26,6 @@ class AuthService
         $studentDTO = StudentDTO::fromArray($data);
 
         return DB::transaction(function () use ($data, $studentDTO) {
-            $this->ensureCoreAuthDataExists();
 
             $userData = $studentDTO->userData();
             $studentData = $studentDTO->studentData();
@@ -39,8 +38,8 @@ class AuthService
             $token = JWTAuth::fromUser($user);
 
             $user->load([
-                'roles.permissions',
-                'studentProfile',
+                'roles',
+             //   'studentProfile',
             ]);
 
             return [
@@ -52,34 +51,9 @@ class AuthService
         });
     }
 
-    private function ensureCoreAuthDataExists(): void
+
+   /* public function login(array $credentials): array
     {
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
-
-        $hasStudentRole = Role::query()
-            ->where('name', UserRole::STUDENT->value)
-            ->where('guard_name', 'api')
-            ->exists();
-
-        $hasSuperAdmin = User::query()
-            ->where('email', 'yara@example.com')
-            ->exists();
-
-        if ($hasStudentRole && $hasSuperAdmin) {
-            return;
-        }
-
-        app(PermissionSeeder::class)->run();
-        app(InstructorRoleSeeder::class)->run();
-        app(AuditorRoleSeeder::class)->run();
-        app(StudentRoleSeeder::class)->run();
-        app(SuperAdminRoleSeeder::class)->run();
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
-    }
-
-    public function login(array $credentials): array
-    {
-        $this->ensureCoreAuthDataExists();
 
         $email = $credentials['email'] ?? null;
         $password = $credentials['password'] ?? null;
@@ -138,13 +112,59 @@ class AuthService
 
         $user->loadMissing('roles');
 
+       return [
+    'status' => 'success',
+    'user' => [
+        'id' => $user->id,
+        'name' => $user->name,
+        'email' => $user->email,
+    ],
+         'role' => $user->getRoleNames()->first(),
+         'token' => $token,
+       ];
+    }*/
+       public function login(array $credentials): array
+{
+    $email = $credentials['email'] ?? null;
+    $password = $credentials['password'] ?? null;
+
+    $authCredentials = [
+        'email' => $email,
+        'password' => $password,
+    ];
+
+    if (! $token = JWTAuth::attempt($authCredentials)) {
         return [
-            'status' => 'success',
-            'user' => $user,
-            'role' => $user->getRoleNames()->first(),
-            'token' => $token,
+            'status' => 'error',
+            'message' => 'invalid credentials',
+            'user' => null,
+            'token' => null,
         ];
     }
+
+    $user = auth()->user();
+
+    if (! $user) {
+        return [
+            'status' => 'error',
+            'message' => 'invalid credentials',
+            'user' => null,
+            'token' => null,
+        ];
+    }
+
+    $user->loadMissing([
+        'roles',
+        'studentProfile',
+    ]);
+
+    return [
+        'status' => 'success',
+        'user' => $user,
+        'role' => $user->getRoleNames()->first(),
+        'token' => $token,
+    ];
+}
 
     public function sendPasswordResetLink(array $payload): array
     {

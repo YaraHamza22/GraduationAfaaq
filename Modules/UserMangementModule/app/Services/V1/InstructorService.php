@@ -19,7 +19,7 @@ class InstructorService
     public function list(array $filters, int $perPage = 15)
     {
         $perPage = (int) ($filters['per_page'] ?? $perPage);
-        $perPage = min(100, max(1, $perPage));
+        $perPage = min(30, max(1, $perPage));
 
         $filtersForQuery = $filters;
         unset($filtersForQuery['per_page']);
@@ -43,7 +43,7 @@ class InstructorService
     public function listForStudentDirectory(array $filters): \Illuminate\Contracts\Pagination\LengthAwarePaginator
     {
         $perPage = (int) ($filters['per_page'] ?? 15);
-        $perPage = min(100, max(1, $perPage));
+        $perPage = min(30, max(1, $perPage));
 
         $filtersForQuery = $filters;
         unset($filtersForQuery['per_page']);
@@ -98,10 +98,9 @@ class InstructorService
             }
 
             $user->instructorProfile()->create($instructorData);
-            $this->ensureInstructorRoleExists();
             $user->assignRole(UserRole::INSTRUCTOR->value);
 
-            return $user->load(['media', 'instructorProfile', 'roles.permissions']);
+            return $user->load(['media', 'instructorProfile', 'roles:id,name,guard_name']);
         });
 
         $this->invalidateCache();
@@ -126,7 +125,7 @@ class InstructorService
                 $instructorDTO->instructorData()
             );
 
-            return $user->load(['media', 'instructorProfile', 'roles.permissions'])->refresh();
+            return $user->load(['media', 'instructorProfile','roles:id,name,guard_name'])->refresh();
         });
 
         $this->invalidateCache($user->id);

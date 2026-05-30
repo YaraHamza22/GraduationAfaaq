@@ -37,7 +37,7 @@ class RegisterRequest extends ApiFormRequest
     {
         return [
             'name'=>'required|string|max:255',
-            'email'=>'required|string',  //unique:users,email
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password'=>['required','string','confirmed',
             Password::min(8)
                 ->mixedCase()
