@@ -10,9 +10,9 @@ class CertificateEligibilityService
 {
     public function evaluateAndIssue(int $courseId, int $studentId, array $progress): array
     {
-        $eligible = $progress['required_quizzes_count'] > 0
-            && $progress['all_required_quizzes_graded'] === true
-            && (float) $progress['weighted_percentage'] >= 60.0;
+        $eligible = ($progress['required_quizzes_count'] ?? 0) > 0
+            && ($progress['all_required_quizzes_graded'] ?? false) === true
+            && (float) ($progress['average_percentage'] ?? 0) >= 60.0;
 
         $certificate = CourseCertificate::query()
             ->where('course_id', $courseId)
@@ -25,6 +25,8 @@ class CertificateEligibilityService
                 'issued' => (bool) $certificate,
                 'certificate_id' => $certificate?->id,
                 'issued_at' => $certificate?->issued_at,
+                'average_percentage' => $progress['average_percentage'] ?? 0,
+                'reason' => 'The student must complete all required graded quizzes and achieve an arithmetic average of at least 60%.',
             ];
         }
 
@@ -36,7 +38,7 @@ class CertificateEligibilityService
                     'student_id' => $studentId,
                 ],
                 [
-                    'weighted_percentage' => $progress['weighted_percentage'],
+                    'weighted_percentage' => $progress['average_percentage'],
                     'issued_at' => now(),
                 ]
             );
@@ -44,7 +46,7 @@ class CertificateEligibilityService
             if (!$certificate->issued_at) {
                 $certificate->update([
                     'issued_at' => now(),
-                    'weighted_percentage' => $progress['weighted_percentage'],
+                    'weighted_percentage' => $progress['average_percentage'],
                 ]);
             }
 
@@ -62,6 +64,7 @@ class CertificateEligibilityService
             'issued' => true,
             'certificate_id' => $certificate->id,
             'issued_at' => $certificate->issued_at,
+            'average_percentage' => $progress['average_percentage'],
         ];
     }
 }

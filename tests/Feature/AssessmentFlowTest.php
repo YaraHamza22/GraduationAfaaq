@@ -376,8 +376,10 @@ class AssessmentFlowTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonPath('data.progress.weighted_percentage', 59.5);
+        $response->assertJsonPath('data.progress.average_percentage', 59.5);
         $response->assertJsonPath('data.certificate.eligible', false);
         $response->assertJsonPath('data.certificate.issued', false);
+        $response->assertJsonPath('data.certificate.average_percentage', 59.5);
 
         Attempt::query()
             ->where('quiz_id', $quizOne->id)
@@ -389,8 +391,10 @@ class AssessmentFlowTest extends TestCase
 
         $secondResponse->assertOk();
         $secondResponse->assertJsonPath('data.progress.weighted_percentage', 65.0);
+        $secondResponse->assertJsonPath('data.progress.average_percentage', 65.0);
         $secondResponse->assertJsonPath('data.certificate.eligible', true);
         $secondResponse->assertJsonPath('data.certificate.issued', true);
+        $secondResponse->assertJsonPath('data.certificate.average_percentage', 65.0);
     }
 
     private function createCourseQuiz(User $instructor): Quiz
