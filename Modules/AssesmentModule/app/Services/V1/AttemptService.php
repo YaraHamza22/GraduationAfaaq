@@ -322,8 +322,9 @@ class AttemptService extends BaseService
                 }
             }
             $score = $attempt->answers()->sum('question_score');
+            $requiresManualReview = $hasManual || $attempt->quiz->auto_grade_enabled === false;
 
-            if ($hasManual) {
+            if ($requiresManualReview) {
                 $attempt->update([
                     'status' => AttemptStatus::SUBMITTED,
                     'score' => $score,
