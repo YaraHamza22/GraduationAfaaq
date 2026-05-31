@@ -39,7 +39,7 @@ class AuthService
 
             $user->load([
                 'roles',
-             //   'studentProfile',
+               'studentProfile',
             ]);
 
             return [
