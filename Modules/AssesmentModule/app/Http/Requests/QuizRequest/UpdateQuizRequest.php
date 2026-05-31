@@ -125,7 +125,12 @@ class UpdateQuizRequest extends ApiFormRequest
 public function withValidator(Validator $validator): void
 {
     $validator->after(function (Validator $v) {
-        $maxScore = (int) $this->input('max_score', 0);
+        $routeQuiz = $this->route('quiz');
+        $currentMaxScore = is_object($routeQuiz) && isset($routeQuiz->max_score)
+            ? (int) $routeQuiz->max_score
+            : 0;
+
+        $maxScore = (int) $this->input('max_score', $currentMaxScore);
         $passing = (int) $this->input('passing_score', 0);
 
         if ($passing > $maxScore) {
@@ -133,7 +138,7 @@ public function withValidator(Validator $validator): void
             return;
         }
 
-        $limit = (int) floor($maxScore * 0.60);
+        $limit = (int) ceil($maxScore * 0.60);
 
         if ($passing < $limit) {
             $v->errors()->add('passing_score', "Passing score must be >= {$limit} (60% of max_score)");
