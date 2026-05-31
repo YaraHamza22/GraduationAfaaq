@@ -113,11 +113,11 @@ class UpdateQuizRequest extends ApiFormRequest
         ];
     }
 
-        /*
+    /*
      * Custom validation logic after the default validation rules are applied.
-     * 
-     * This checks that the passing score is not greater than the maximum score 
-     * and that the passing score does not exceed 60% of the max score.
+     *
+     * This checks that the passing score is not greater than the maximum score
+     * and that the passing score is at least 60% of the max score.
      *
      * @param Validator $validator
      * @return void
