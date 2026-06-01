@@ -34,7 +34,7 @@ class ChatThreadController extends Controller
             $threads = ChatThread::query()
                 ->whereIn('id', $threadIds)
                 ->with([
-                    'latestMessage:id,chat_thread_id,body,created_at,updated_at',
+                    'latestMessage',
                     'participants.user:id,name,email',
                 ])
                 ->latest()
@@ -72,7 +72,7 @@ class ChatThreadController extends Controller
 
         $chatThread->load([
             'participants.user:id,name,email',
-            'latestMessage:id,chat_thread_id,body,created_at,updated_at',
+            'latestMessage',
         ]);
 
         return self::success($chatThread, 'Chat thread fetched successfully.');
@@ -139,3 +139,4 @@ class ChatThreadController extends Controller
         }
     }
 }
+
