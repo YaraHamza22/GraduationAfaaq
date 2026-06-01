@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\UserMangementModule\Models\User;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\DatabaseNotification;
 use Modules\AssesmentModule\Models\Attempt;
