@@ -4,10 +4,12 @@ namespace Modules\CommunicationModule\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Modules\CommunicationModule\Http\Requests\Chat\StoreChatMessageRequest;
 use Modules\CommunicationModule\Models\ChatMessage;
 use Modules\CommunicationModule\Models\ChatThread;
 use Modules\CommunicationModule\Services\V1\ChatService;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class ChatMessageController extends Controller
 {
@@ -21,11 +23,24 @@ class ChatMessageController extends Controller
     public function index(ChatThread $chatThread)
     {
         $this->authorize('view', $chatThread);
-        $messages = ChatMessage::query()
-            ->where('chat_thread_id', $chatThread->id)
-            ->latest()
-            ->paginate(30);
-        return self::paginated($messages, 'Chat messages fetched successfully.');
+
+        try {
+            $messages = ChatMessage::query()
+                ->where('chat_thread_id', $chatThread->id)
+                ->with('sender:id,name,email')
+                ->latest()
+                ->paginate(30);
+
+            return self::paginated($messages, 'Chat messages fetched successfully.');
+        } catch (\Throwable $e) {
+            Log::error('Failed to fetch chat messages', [
+                'chat_thread_id' => $chatThread->id,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            throw new HttpException(500, 'Unable to load chat messages right now.');
+        }
     }
 
     public function store(StoreChatMessageRequest $request, ChatThread $chatThread)

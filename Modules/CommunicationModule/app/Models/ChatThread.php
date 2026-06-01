@@ -2,10 +2,10 @@
 
 namespace Modules\CommunicationModule\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-// use Modules\CommunicationModule\Database\Factories\ChatThreadFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class ChatThread extends Model
 {
@@ -16,5 +16,10 @@ class ChatThread extends Model
     public function participants(): HasMany
     {
         return $this->hasMany(ChatParticipant::class, 'chat_thread_id');
+    }
+
+    public function latestMessage(): HasOne
+    {
+        return $this->hasOne(ChatMessage::class, 'chat_thread_id')->latestOfMany();
     }
 }

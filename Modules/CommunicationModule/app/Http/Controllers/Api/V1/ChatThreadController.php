@@ -4,6 +4,7 @@ namespace Modules\CommunicationModule\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Modules\CommunicationModule\Http\Requests\Chat\AddChatParticipantRequest;
 use Modules\CommunicationModule\Http\Requests\Chat\StoreChatThreadRequest;
 use Modules\CommunicationModule\Models\ChatMessage;
@@ -24,10 +25,39 @@ class ChatThreadController extends Controller
 
     public function index()
     {
-        $userId = Auth::id();
-        $threadIds = ChatParticipant::query()->where('user_id', $userId)->pluck('chat_thread_id');
-        $threads = ChatThread::query()->whereIn('id', $threadIds)->latest()->paginate(15);
-        return self::paginated($threads, 'Chat threads fetched successfully.');
+        try {
+            $userId = Auth::id();
+            $threadIds = ChatParticipant::query()
+                ->where('user_id', $userId)
+                ->pluck('chat_thread_id');
+
+            $threads = ChatThread::query()
+                ->whereIn('id', $threadIds)
+                ->with([
+                    'latestMessage:id,chat_thread_id,body,created_at,updated_at',
+                    'participants.user:id,name,email',
+                ])
+                ->latest()
+                ->paginate(15);
+
+            $threads->getCollection()->transform(function (ChatThread $thread) {
+                $thread->setAttribute(
+                    'last_message_body',
+                    $thread->latestMessage?->body ?? 'No messages yet.'
+                );
+
+                return $thread;
+            });
+
+            return self::paginated($threads, 'Chat threads fetched successfully.');
+        } catch (\Throwable $e) {
+            Log::error('Failed to fetch chat threads', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            throw new HttpException(500, 'Unable to load chat threads right now.');
+        }
     }
 
     public function store(StoreChatThreadRequest $request)
@@ -39,6 +69,12 @@ class ChatThreadController extends Controller
     public function show(ChatThread $chatThread)
     {
         $this->authorize('view', $chatThread);
+
+        $chatThread->load([
+            'participants.user:id,name,email',
+            'latestMessage:id,chat_thread_id,body,created_at,updated_at',
+        ]);
+
         return self::success($chatThread, 'Chat thread fetched successfully.');
     }
 
@@ -52,8 +88,23 @@ class ChatThreadController extends Controller
     public function participants(ChatThread $chatThread)
     {
         $this->authorize('view', $chatThread);
-        $participants = ChatParticipant::query()->where('chat_thread_id', $chatThread->id)->get();
-        return self::success($participants, 'Participants fetched successfully.');
+
+        try {
+            $participants = ChatParticipant::query()
+                ->where('chat_thread_id', $chatThread->id)
+                ->with('user:id,name,email')
+                ->get();
+
+            return self::success($participants, 'Participants fetched successfully.');
+        } catch (\Throwable $e) {
+            Log::error('Failed to fetch chat participants', [
+                'chat_thread_id' => $chatThread->id,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            throw new HttpException(500, 'Unable to load chat participants right now.');
+        }
     }
 
     public function addParticipant(AddChatParticipantRequest $request, ChatThread $chatThread)
@@ -68,14 +119,23 @@ class ChatThreadController extends Controller
 
     public function unreadCount()
     {
-        $userId = Auth::id();
-        $threadIds = ChatParticipant::query()->where('user_id', $userId)->pluck('chat_thread_id');
+        try {
+            $userId = Auth::id();
+            $threadIds = ChatParticipant::query()->where('user_id', $userId)->pluck('chat_thread_id');
 
-        $unread = ChatMessage::query()
-            ->whereIn('chat_thread_id', $threadIds)
-            ->whereDoesntHave('reads', fn ($q) => $q->where('user_id', $userId))
-            ->count();
+            $unread = ChatMessage::query()
+                ->whereIn('chat_thread_id', $threadIds)
+                ->whereDoesntHave('reads', fn ($q) => $q->where('user_id', $userId))
+                ->count();
 
-        return self::success(['unread_count' => $unread], 'Unread count fetched successfully.');
+            return self::success(['unread_count' => $unread], 'Unread count fetched successfully.');
+        } catch (\Throwable $e) {
+            Log::error('Failed to fetch unread chat count', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            throw new HttpException(500, 'Unable to load unread chat count right now.');
+        }
     }
 }
