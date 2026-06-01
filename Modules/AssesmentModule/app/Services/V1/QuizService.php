@@ -22,6 +22,7 @@ class QuizService extends BaseService
             }
 
             $data = Quiz::query()
+                ->withCount('questions')
                 ->with($relations)
                 ->filter($filters)
                 ->paginate($perPage);
@@ -36,6 +37,7 @@ class QuizService extends BaseService
     {
         try {
             $quiz = Quiz::query()
+                ->withCount('questions')
                 ->with(['questions.options', 'quizable', 'instructor'])
                 ->findOrFail($id);
 
