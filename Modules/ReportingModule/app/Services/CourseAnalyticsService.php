@@ -27,7 +27,9 @@ class CourseAnalyticsService
             $query->where('published_at', '<=', $filters['date_to']);
         }
 
-        $courses = $query->with(['courseCategory'])
+        $courses = $query
+            ->select(['course_id', 'title', 'course_category_id', 'average_rating'])
+            ->with(['courseCategory:course_category_id,name'])
             ->withCount('enrollments')
             ->orderBy('enrollments_count', 'desc')
             ->get();
@@ -53,7 +55,10 @@ class CourseAnalyticsService
             return ['error' => 'Course ID is required'];
         }
 
-        $course = Course::with(['enrollments', 'units.lessons'])->find($courseId);
+        $course = Course::with([
+            'enrollments:enrollment_id,course_id,enrollment_status,progress_percentage',
+            'units.lessons:lesson_id,unit_id',
+        ])->find($courseId);
 
         if (!$course) {
             return ['error' => 'Course not found'];
@@ -100,7 +105,8 @@ class CourseAnalyticsService
             $query->where('instructor_id', $instructorId);
         })
             ->with(['enrollments' => function ($query) {
-                $query->where('enrollment_status', EnrollmentStatus::COMPLETED);
+                $query->where('enrollment_status', EnrollmentStatus::COMPLETED)
+                    ->select(['enrollment_id', 'course_id', 'enrollment_status', 'progress_percentage']);
             }])
             ->get()
             ->map(function ($course) {
@@ -148,13 +154,14 @@ class CourseAnalyticsService
             ->values()
             ->toArray();
 
-        $lowProgressCourses = Course::with('enrollments')
+        // Use withAvg instead of loading all enrollment rows into memory.
+        $lowProgressCourses = Course::withAvg('enrollments', 'progress_percentage')
             ->get()
             ->map(function ($course) {
                 return [
-                    'course_id' => $course->course_id,
-                    'title' => $course->title,
-                    'average_progress' => round($course->enrollments->avg('progress_percentage') ?? 0, 2),
+                    'course_id'        => $course->course_id,
+                    'title'            => $course->title,
+                    'average_progress' => round((float) ($course->enrollments_avg_progress_percentage ?? 0), 2),
                 ];
             })
             ->filter(fn ($course) => $course['average_progress'] < 40)

@@ -216,7 +216,7 @@ class CourseInstructorService
     public function getInstructors(Course $course)
     {
         return CourseInstructor::where('course_id', $course->course_id)
-            ->with(['instructor', 'assignedBy'])
+            ->with(['instructor:id,name,email', 'assignedBy:id,name'])
             ->orderBy('is_primary', 'desc')
             ->orderBy('assigned_at', 'asc')
             ->get();

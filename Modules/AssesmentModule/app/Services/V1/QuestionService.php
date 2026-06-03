@@ -28,7 +28,9 @@ class QuestionService extends BaseService
     public function index(array $filters = [], int $perPage = 15)
     {
         try {
-            return Question::query()->filter($filters)->paginate($perPage);
+            return Question::query()
+                ->filter($filters)
+                ->paginate($perPage);
         } catch (Throwable $e) {
             throw new \Exception('Failed to fetch questions: ' . $e->getMessage());
         }
@@ -62,7 +64,7 @@ class QuestionService extends BaseService
     public function show($id)
     {
         try {
-            $question = Question::find($id);
+            $question = Question::with(['options:id,question_id,option_text,is_correct'])->find($id);
 
             if (! $question) {
                 throw new \Exception('Question not found');

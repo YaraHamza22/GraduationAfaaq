@@ -282,7 +282,7 @@ class CourseBuilder extends Builder
      */
     public function withRelations(): self
     {
-        return $this->with(['courseCategory', 'instructors', 'creator']);
+        return $this->with(['courseCategory', 'instructors', 'creator', 'media']);
     }
 
     /**

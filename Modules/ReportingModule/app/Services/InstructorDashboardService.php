@@ -18,7 +18,7 @@ class InstructorDashboardService
         return Cache::remember($cacheKey, 300, function () use ($instructorId) {
             $courses = Course::whereHas('instructors', function ($q) use ($instructorId) {
                 $q->where('instructor_id', $instructorId);
-            })->with(['enrollments'])->get();
+            })->with(['enrollments:enrollment_id,course_id,learner_id,enrollment_status,progress_percentage'])->get();
 
             $totalStudents = 0;
             $nonUniqueStudents = collect();

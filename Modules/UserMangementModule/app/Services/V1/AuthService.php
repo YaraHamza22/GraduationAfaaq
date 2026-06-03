@@ -38,8 +38,8 @@ class AuthService
             $token = JWTAuth::fromUser($user);
 
             $user->load([
-                'roles',
-               'studentProfile',
+                'roles:id,name,guard_name',
+                'studentProfile',
             ]);
 
             return [
@@ -154,7 +154,7 @@ class AuthService
     }
 
     $user->loadMissing([
-        'roles',
+        'roles:id,name,guard_name',
         'studentProfile',
     ]);
 

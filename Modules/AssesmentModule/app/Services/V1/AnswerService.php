@@ -86,7 +86,6 @@ class AnswerService extends BaseService
         try {
             return DB::transaction(function () use ($attempt, $rows) {
                 $created = collect();
-
                 $rowKeys = array_flip(self::ANSWER_ROW_KEYS);
 
                 foreach ($rows as $row) {
@@ -97,9 +96,15 @@ class AnswerService extends BaseService
                     $created->push(Answer::create($payload));
                 }
 
-                return $created->map(
-                    fn (Answer $a) => $a->load(['attempt:id,quiz_id,student_id,status', 'question:id,quiz_id,type', 'grader:id,name,email'])
-                );
+                // Load all relationships in 3 queries (one per relation) instead
+                // of 3 × N queries (one per answer per relation).
+                $created->loadMissing([
+                    'attempt:id,quiz_id,student_id,status',
+                    'question:id,quiz_id,type',
+                    'grader:id,name,email',
+                ]);
+
+                return $created;
             });
         } catch (Throwable $e) {
             throw new \Exception('Failed to bulk create answers: ' . $e->getMessage());

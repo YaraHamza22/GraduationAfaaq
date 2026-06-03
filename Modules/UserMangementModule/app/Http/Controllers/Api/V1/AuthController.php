@@ -61,8 +61,8 @@ class AuthController extends Controller
         $token = JWTAuth::refresh($token);
         $data = [
             'status' => 'success',
-            'user' => auth()->user(),
-            'token' => $token,
+            'user'   => auth()->user(),
+            'token'  => $token,
         ];
 
         return self::success($data);

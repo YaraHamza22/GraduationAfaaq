@@ -31,7 +31,7 @@ class InstructorService
 
         return $this->rememberWithTags([self::TAG_GLOBAL], $cacheKey, function () use ($filtersForQuery, $perPage) {
             return User::whereHas('instructorProfile')
-                ->with(['media', 'instructorProfile', 'roles.permissions'])
+                ->with(['media', 'instructorProfile', 'roles:id,name,guard_name', 'roles.permissions:id,name'])
                 ->filters($filtersForQuery)
                 ->paginate($perPage);
         });
@@ -77,7 +77,7 @@ class InstructorService
             [self::TAG_GLOBAL, self::TAG_PREFIX_INSTRUCTOR . $id],
             $cacheKey,
             function () use ($id) {
-                return User::with(['media', 'instructorProfile', 'roles.permissions'])
+                return User::with(['media', 'instructorProfile', 'roles:id,name,guard_name', 'roles.permissions:id,name'])
                     ->findOrFail($id);
             }
         );
@@ -161,7 +161,7 @@ class InstructorService
         $this->ensureInstructorRoleExists();
         $user->assignRole(UserRole::INSTRUCTOR->value);
 
-        return $user->load(['media', 'instructorProfile', 'roles.permissions']);
+        return $user->load(['media', 'instructorProfile', 'roles:id,name,guard_name', 'roles.permissions:id,name']);
     }
 
     private function ensureInstructorRoleExists(): void

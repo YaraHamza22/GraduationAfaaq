@@ -21,7 +21,12 @@ class ForumThreadController extends Controller
 
     public function index()
     {
-        $threads = ForumThread::query()->latest()->paginate(15);
+        $threads = ForumThread::query()
+            ->with('author:id,name')
+            ->withCount('posts')
+            ->latest()
+            ->paginate(15);
+
         return self::paginated($threads, 'Forum threads fetched successfully.');
     }
 
@@ -33,6 +38,9 @@ class ForumThreadController extends Controller
 
     public function show(ForumThread $forumThread)
     {
+        $forumThread->loadMissing(['author:id,name']);
+        $forumThread->loadCount('posts');
+
         return self::success($forumThread, 'Forum thread fetched successfully.');
     }
 

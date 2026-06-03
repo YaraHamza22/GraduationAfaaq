@@ -72,7 +72,7 @@ class LessonBuilder extends Builder
      */
     public function withRelations(): self
     {
-        return $this->with(['unit']);
+        return $this->with(['unit', 'media']);
     }
 
     /**

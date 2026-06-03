@@ -157,6 +157,13 @@ class AttemptService extends BaseService
             $paginator = $query->paginate($perPage);
             $results = AttemptResource::collection($paginator->getCollection())->resolve();
 
+            $statusCounts = Attempt::query()
+                ->where('quiz_id', $quiz->id)
+                ->whereIn('status', [AttemptStatus::SUBMITTED->value, AttemptStatus::GRADED->value])
+                ->selectRaw('status, COUNT(*) as total')
+                ->groupBy('status')
+                ->pluck('total', 'status');
+
             return $this->ok('Quiz results fetched successfully.', [
                 'quiz' => [
                     'id' => $quiz->id,
@@ -166,8 +173,8 @@ class AttemptService extends BaseService
                     'instructor_id' => $quiz->instructor_id,
                 ],
                 'summary' => [
-                    'submitted_count' => Attempt::query()->where('quiz_id', $quiz->id)->where('status', AttemptStatus::SUBMITTED->value)->count(),
-                    'graded_count' => Attempt::query()->where('quiz_id', $quiz->id)->where('status', AttemptStatus::GRADED->value)->count(),
+                    'submitted_count' => (int) ($statusCounts[AttemptStatus::SUBMITTED->value] ?? 0),
+                    'graded_count' => (int) ($statusCounts[AttemptStatus::GRADED->value] ?? 0),
                     'results_count' => $paginator->total(),
                 ],
                 'results' => $results,
@@ -254,6 +261,8 @@ class AttemptService extends BaseService
             return $this->fail('Invalid attempt state.', null, 422);
         }
 
+        $attempt->loadMissing('quiz:id,duration_minutes');
+
         $attempt->update([
             'status' => AttemptStatus::IN_PROGRESS,
             'start_at' => now(),
@@ -278,65 +287,77 @@ class AttemptService extends BaseService
             return $this->fail('Invalid state.', null, 422);
         }
 
+        // Eager-load quiz with all its questions+options in one shot to avoid
+        // N+1 queries inside the foreach loop below.
+        $attempt->loadMissing([
+            'quiz:id,passing_score,auto_grade_enabled',
+            'quiz.questions:id,quiz_id,type,point',
+            'quiz.questions.options:id,question_id,is_correct',
+        ]);
+
+        $quiz      = $attempt->quiz;
+        $questions = $quiz->questions->keyBy('id');
+
         $hasManual = false;
-        DB::transaction(function () use ($attempt, $data, &$hasManual) {
+        DB::transaction(function () use ($attempt, $data, $questions, &$hasManual) {
 
             foreach ($data['answers'] as $ans) {
+                $question = $questions->get((int) $ans['question_id']);
 
-                $question = $attempt->quiz->questions()
-                    ->with('options')
-              ->find($ans['question_id']);
+                if (! $question) {
+                    continue;
+                }
 
                 $answer = Answer::updateOrCreate(
                     [
                         'attempt_id' => $attempt->id,
-                        'question_id' => $question->id
+                        'question_id' => $question->id,
                     ],
                     [
                         'selected_option_id' => $ans['selected_option_id'] ?? null,
-                        'answer_text' => $ans['answer_text'] ?? null,
-                        'boolean_answer' => $ans['boolean_answer'] ?? null,
+                        'answer_text'        => $ans['answer_text'] ?? null,
+                        'boolean_answer'     => $ans['boolean_answer'] ?? null,
                     ]
                 );
 
                 if ($question->type === QuestionType::MULTIPLE_CHOICE
                     || $question->type === QuestionType::TRUE_FALSE) {
 
-                    $opt = $question->options
-                        ->firstWhere('id', $ans['selected_option_id']);
-
+                    $opt     = $question->options->firstWhere('id', $ans['selected_option_id']);
                     $correct = $opt?->is_correct ?? false;
 
                     $answer->update([
-                        'is_correct' => $correct,
-                        'question_score' => $correct ? $question->point : 0
+                        'is_correct'     => $correct,
+                        'question_score' => $correct ? $question->point : 0,
                     ]);
                 }
 
                 if ($question->type === QuestionType::SHORT_ANSWER) {
                     $hasManual = true;
                     $answer->update([
-                        'is_correct' => null,
+                        'is_correct'     => null,
                         'question_score' => 0,
                     ]);
                 }
             }
-            $score = $attempt->answers()->sum('question_score');
-            $requiresManualReview = $hasManual || $attempt->quiz->auto_grade_enabled === false;
+
+            // Calculate score from in-memory collection to avoid an extra query.
+            $score                = (int) $attempt->answers()->sum('question_score');
+            $requiresManualReview = $hasManual || $quiz->auto_grade_enabled === false;
 
             if ($requiresManualReview) {
                 $attempt->update([
-                    'status' => AttemptStatus::SUBMITTED,
-                    'score' => $score,
+                    'status'       => AttemptStatus::SUBMITTED,
+                    'score'        => $score,
                     'submitted_at' => now(),
                 ]);
             } else {
                 $attempt->update([
-                    'status' => AttemptStatus::GRADED,
-                    'score' => $score,
-                    'is_passed' => $score >= $attempt->quiz->passing_score,
+                    'status'       => AttemptStatus::GRADED,
+                    'score'        => $score,
+                    'is_passed'    => $score >= $quiz->passing_score,
                     'submitted_at' => now(),
-                    'graded_at' => now(),
+                    'graded_at'    => now(),
                 ]);
             }
         });
@@ -358,25 +379,26 @@ class AttemptService extends BaseService
                 return $this->fail('Only submitted attempts can be graded.', null, 422);
             }
 
-            $gradedBy = Auth::id();
+            $gradedBy  = Auth::id();
             $questions = $attempt->quiz->questions->keyBy('id');
-            $providedQuestionIds = collect($data['answers'])->pluck('question_id');
 
+            // Index the already-loaded answers collection by question_id to avoid
+            // one query per answer inside the loop.
+            $answersMap = $attempt->answers->keyBy('question_id');
+
+            $providedQuestionIds = collect($data['answers'])->pluck('question_id');
             if ($providedQuestionIds->duplicates()->isNotEmpty()) {
                 return $this->fail('Each question can only be graded once per request.', null, 422);
             }
 
-            DB::transaction(function () use ($attempt, $data, $questions, $gradedBy) {
+            DB::transaction(function () use ($attempt, $data, $questions, $answersMap, $gradedBy) {
                 foreach ($data['answers'] as $ans) {
                     $question = $questions->get((int) $ans['question_id']);
                     if (! $question) {
                         throw new ModelNotFoundException('Question does not belong to this quiz.');
                     }
 
-                    $answer = $attempt->answers()
-                        ->where('question_id', $ans['question_id'])
-                        ->first();
-
+                    $answer = $answersMap->get((int) $ans['question_id']);
                     if (! $answer) {
                         throw new ModelNotFoundException('Answer not found for the provided question.');
                     }
@@ -392,20 +414,21 @@ class AttemptService extends BaseService
 
                     $answer->update([
                         'question_score' => $earnedScore,
-                        'is_correct' => (bool) $ans['is_correct'],
-                        'graded_by' => $gradedBy,
-                        'graded_at' => now(),
+                        'is_correct'     => (bool) $ans['is_correct'],
+                        'graded_by'      => $gradedBy,
+                        'graded_at'      => now(),
                     ]);
                 }
 
+                // Re-sum from DB after all updates are persisted.
                 $score = (int) $attempt->answers()->sum('question_score');
 
                 $attempt->update([
-                    'status' => AttemptStatus::GRADED,
-                    'score' => $score,
-                    'is_passed' => $score >= $attempt->quiz->passing_score,
-                    'graded_by' => $gradedBy,
-                    'graded_at' => now(),
+                    'status'     => AttemptStatus::GRADED,
+                    'score'      => $score,
+                    'is_passed'  => $score >= $attempt->quiz->passing_score,
+                    'graded_by'  => $gradedBy,
+                    'graded_at'  => now(),
                 ]);
             });
 

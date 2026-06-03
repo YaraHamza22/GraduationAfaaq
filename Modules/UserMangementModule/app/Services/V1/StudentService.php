@@ -27,7 +27,7 @@ class StudentService
 
         return $this->rememberWithTags([self::TAG_GLOBAL], $cacheKey, function () use ($filters, $perPage) {
             return User::whereHas('studentProfile')
-                ->with(['media', 'studentProfile', 'roles.permissions'])
+                ->with(['media', 'studentProfile', 'roles:id,name,guard_name', 'roles.permissions:id,name'])
                 ->filters($filters)
                 ->paginate($perPage);
         });
@@ -55,7 +55,7 @@ class StudentService
      */
     public function findWithCourses(User $user): array
     {
-        $user->loadMissing(['media', 'studentProfile', 'roles.permissions']);
+        $user->loadMissing(['media', 'studentProfile', 'roles:id,name,guard_name', 'roles.permissions:id,name']);
 
         return [
             'student' => $user,
@@ -70,7 +70,7 @@ class StudentService
      */
     public function findWithQuizzes(User $user): array
     {
-        $user->loadMissing(['media', 'studentProfile', 'roles.permissions']);
+        $user->loadMissing(['media', 'studentProfile', 'roles:id,name,guard_name', 'roles.permissions:id,name']);
 
         $quizzes = collect();
 

@@ -25,7 +25,12 @@ class ForumPostController extends Controller
 
     public function index(ForumThread $forumThread)
     {
-        $posts = ForumPost::query()->where('forum_thread_id', $forumThread->id)->latest()->paginate(20);
+        $posts = ForumPost::query()
+            ->where('forum_thread_id', $forumThread->id)
+            ->with('author:id,name')
+            ->latest()
+            ->paginate(20);
+
         return self::paginated($posts, 'Forum posts fetched successfully.');
     }
 
