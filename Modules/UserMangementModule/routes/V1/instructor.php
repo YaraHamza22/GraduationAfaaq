@@ -5,6 +5,11 @@ use Modules\LearningModule\Http\Controllers\CourseController;
 use Modules\LearningModule\Http\Controllers\LessonController;
 use Modules\LearningModule\Http\Controllers\UnitController;
 use Modules\AssesmentModule\Http\Controllers\Api\V1\AssessmentProgressController;
+use Modules\AssesmentModule\Http\Controllers\Api\V1\QuizController;
+use Modules\AssesmentModule\Http\Controllers\Api\V1\QuestionController;
+use Modules\AssesmentModule\Http\Controllers\Api\V1\QuestionOptionController;
+use Modules\AssesmentModule\Http\Controllers\Api\V1\AttemptController;
+use Modules\AssesmentModule\Http\Controllers\Api\V1\AnswerController;
 use Modules\ReportingModule\Http\Controllers\TeacherDashboardController;
 use Modules\UserMangementModule\Http\Controllers\Api\V1\InstructorStudentController;
 
@@ -247,4 +252,106 @@ Route::group(['middleware' => ['auth:api', 'role:instructor,api']], function () 
      * Modules/LearningModule/routes/api.php. Duplicating them here with role:instructor overwrote
      * permission-only routes and broke clients using other roles (e.g. auditor).
      */
+
+    /**
+    |--------------------------------------------------------------------------
+    | 4. Quiz Management (Assessment Module)
+    |--------------------------------------------------------------------------
+     */
+
+    /** GET    /api/v1/instructor/quizzes              — list instructor quizzes */
+    Route::get('/instructor/quizzes', [QuizController::class, 'index']);
+
+    /** POST   /api/v1/instructor/quizzes              — create quiz */
+    Route::post('/instructor/quizzes', [QuizController::class, 'store']);
+
+    /** GET    /api/v1/instructor/quizzes/{quiz}       — show quiz */
+    Route::get('/instructor/quizzes/{quiz}', [QuizController::class, 'show']);
+
+    /** PUT    /api/v1/instructor/quizzes/{quiz}       — update quiz */
+    Route::put('/instructor/quizzes/{quiz}', [QuizController::class, 'update']);
+
+    /** DELETE /api/v1/instructor/quizzes/{quiz}       — delete quiz */
+    Route::delete('/instructor/quizzes/{quiz}', [QuizController::class, 'destroy']);
+
+    /** POST   /api/v1/instructor/quizzes/{quiz}/publish   — publish quiz */
+    Route::post('/instructor/quizzes/{quiz}/publish', [QuizController::class, 'publish']);
+
+    /** POST   /api/v1/instructor/quizzes/{quiz}/unpublish — unpublish quiz */
+    Route::post('/instructor/quizzes/{quiz}/unpublish', [QuizController::class, 'unpublish']);
+
+    /** POST   /api/v1/instructor/quizzes/{quiz}/archive   — archive quiz */
+    Route::post('/instructor/quizzes/{quiz}/archive', [QuizController::class, 'archive']);
+
+    /** GET    /api/v1/instructor/quizzes/{quiz}/results   — quiz attempt results */
+    Route::get('/instructor/quizzes/{quiz}/results', [AttemptController::class, 'results']);
+
+    /**
+    |--------------------------------------------------------------------------
+    | 5. Question Management (Assessment Module)
+    |--------------------------------------------------------------------------
+     */
+
+    /** GET    /api/v1/instructor/questions            — list questions */
+    Route::get('/instructor/questions', [QuestionController::class, 'index']);
+
+    /** POST   /api/v1/instructor/questions            — create question */
+    Route::post('/instructor/questions', [QuestionController::class, 'store']);
+
+    /** GET    /api/v1/instructor/questions/{id}       — show question */
+    Route::get('/instructor/questions/{id}', [QuestionController::class, 'show']);
+
+    /** PUT    /api/v1/instructor/questions/{id}       — update question */
+    Route::put('/instructor/questions/{id}', [QuestionController::class, 'update']);
+
+    /** DELETE /api/v1/instructor/questions/{id}       — delete question */
+    Route::delete('/instructor/questions/{id}', [QuestionController::class, 'destroy']);
+
+    /**
+    |--------------------------------------------------------------------------
+    | 6. Question Option Management (Assessment Module)
+    |--------------------------------------------------------------------------
+     */
+
+    /** GET    /api/v1/instructor/question-options     — list options */
+    Route::get('/instructor/question-options', [QuestionOptionController::class, 'index']);
+
+    /** POST   /api/v1/instructor/question-options     — create option */
+    Route::post('/instructor/question-options', [QuestionOptionController::class, 'store']);
+
+    /** GET    /api/v1/instructor/question-options/{id} — show option */
+    Route::get('/instructor/question-options/{id}', [QuestionOptionController::class, 'show']);
+
+    /** PUT    /api/v1/instructor/question-options/{id} — update option */
+    Route::put('/instructor/question-options/{id}', [QuestionOptionController::class, 'update']);
+
+    /** DELETE /api/v1/instructor/question-options/{id} — delete option */
+    Route::delete('/instructor/question-options/{id}', [QuestionOptionController::class, 'destroy']);
+
+    /**
+    |--------------------------------------------------------------------------
+    | 7. Attempt Management — Grading (Assessment Module)
+    |--------------------------------------------------------------------------
+     */
+
+    /** GET    /api/v1/instructor/attempts             — list attempts */
+    Route::get('/instructor/attempts', [AttemptController::class, 'index']);
+
+    /** GET    /api/v1/instructor/attempts/{attempt}   — show attempt */
+    Route::get('/instructor/attempts/{attempt}', [AttemptController::class, 'show']);
+
+    /** POST   /api/v1/instructor/attempts/{attempt}/grade — grade attempt */
+    Route::post('/instructor/attempts/{attempt}/grade', [AttemptController::class, 'grade']);
+
+    /**
+    |--------------------------------------------------------------------------
+    | 8. Answer Management (Assessment Module)
+    |--------------------------------------------------------------------------
+     */
+
+    /** GET    /api/v1/instructor/answers              — list answers */
+    Route::get('/instructor/answers', [AnswerController::class, 'index']);
+
+    /** GET    /api/v1/instructor/answers/{answer}     — show answer */
+    Route::get('/instructor/answers/{answer}', [AnswerController::class, 'show']);
 });

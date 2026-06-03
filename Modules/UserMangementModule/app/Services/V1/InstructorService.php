@@ -100,8 +100,11 @@ class InstructorService
             $user->instructorProfile()->create($instructorData);
             $user->assignRole(UserRole::INSTRUCTOR->value);
 
-            return $user->load(['media', 'instructorProfile', 'roles:id,name,guard_name']);
+            return $user;
         });
+
+        // Load relations outside transaction so SELECT queries don't block the DB lock.
+        $user->load(['media', 'instructorProfile', 'roles:id,name,guard_name']);
 
         $this->invalidateCache();
 
@@ -125,8 +128,11 @@ class InstructorService
                 $instructorDTO->instructorData()
             );
 
-            return $user->load(['media', 'instructorProfile','roles:id,name,guard_name'])->refresh();
+            return $user;
         });
+
+        // Load relations outside transaction so SELECT queries don't block the DB lock.
+        $updatedUser->load(['media', 'instructorProfile', 'roles:id,name,guard_name']);
 
         $this->invalidateCache($user->id);
 
