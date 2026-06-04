@@ -299,7 +299,7 @@ class AttemptService extends BaseService
         $questions = $quiz->questions->keyBy('id');
 
         $hasManual = false;
-        DB::transaction(function () use ($attempt, $data, $questions, &$hasManual) {
+        DB::transaction(function () use ($attempt, $data, $questions, $quiz, &$hasManual) {
 
             foreach ($data['answers'] as $ans) {
                 $question = $questions->get((int) $ans['question_id']);

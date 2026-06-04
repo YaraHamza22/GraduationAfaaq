@@ -2,13 +2,24 @@
 
 namespace Modules\CommunicationModule\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-// use Modules\CommunicationModule\Database\Factories\ForumPostFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ForumPost extends Model
 {
     use HasFactory;
 
     protected $fillable = ['forum_thread_id', 'author_id', 'body'];
+
+    public function author(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'author_id');
+    }
+
+    public function thread(): BelongsTo
+    {
+        return $this->belongsTo(ForumThread::class, 'forum_thread_id');
+    }
 }
