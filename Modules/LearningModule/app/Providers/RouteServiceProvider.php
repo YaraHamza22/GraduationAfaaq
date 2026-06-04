@@ -22,23 +22,29 @@ class RouteServiceProvider extends ServiceProvider
         // Course and CourseCategory need explicit binding for slug + ID fallback support
 
         Route::bind('course', function ($value) {
-            // Try slug first, fallback to course_id for backward compatibility
-            return \Modules\LearningModule\Models\Course::where('slug', $value)
-                ->orWhere('course_id', $value)
-                ->firstOrFail();
+            // Try slug first, fallback to course_id only if numeric
+            $query = \Modules\LearningModule\Models\Course::where('slug', $value);
+            if (is_numeric($value)) {
+                $query->orWhere('course_id', $value);
+            }
+            return $query->firstOrFail();
         });
 
         Route::bind('courseCategory', function ($value) {
-            // Try slug first, fallback to course_category_id for backward compatibility
-            return \Modules\LearningModule\Models\CourseCategory::where('slug', $value)
-                ->orWhere('course_category_id', $value)
-                ->firstOrFail();
+            // Try slug first, fallback to course_category_id only if numeric
+            $query = \Modules\LearningModule\Models\CourseCategory::where('slug', $value);
+            if (is_numeric($value)) {
+                $query->orWhere('course_category_id', $value);
+            }
+            return $query->firstOrFail();
         });
 
         Route::bind('course_category', function ($value) {
-            return \Modules\LearningModule\Models\CourseCategory::where('slug', $value)
-                ->orWhere('course_category_id', $value)
-                ->firstOrFail();
+            $query = \Modules\LearningModule\Models\CourseCategory::where('slug', $value);
+            if (is_numeric($value)) {
+                $query->orWhere('course_category_id', $value);
+            }
+            return $query->firstOrFail();
         });
     }
 
