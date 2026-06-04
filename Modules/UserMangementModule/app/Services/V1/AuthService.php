@@ -153,10 +153,7 @@ class AuthService
         ];
     }
 
-    $user->loadMissing([
-        'roles:id,name,guard_name',
-        'studentProfile',
-    ]);
+    $user->loadMissing(['roles:id,name,guard_name']);
 
     return [
         'status' => 'success',
