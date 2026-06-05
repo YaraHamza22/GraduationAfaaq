@@ -482,9 +482,10 @@ class EnrollmentService
             throw new HttpException(422, 'This lesson does not belong to the enrolled course.');
         }
 
-        // Check enrollment is active
-        if ($enrollment->enrollment_status !== EnrollmentStatus::ACTIVE->value
-            && $enrollment->enrollment_status !== 'active') {
+        // Check enrollment is active (cast returns Enum object)
+        $status = $enrollment->enrollment_status;
+        $statusValue = $status instanceof EnrollmentStatus ? $status->value : (string) $status;
+        if (strtolower($statusValue) !== 'active') {
             throw new HttpException(422, 'Enrollment is not active.');
         }
 

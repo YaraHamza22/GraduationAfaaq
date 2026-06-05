@@ -119,6 +119,14 @@ Route::group(['middleware' => ['auth:api', 'role:student,api']], function () {
     Route::get('/enrollments/{enrollment}/progress', [EnrollmentController::class, 'getProgress']);
 
     /**
+     * @name   Complete Lesson
+     * @path   POST /api/v1/enrollments/{enrollment}/lessons/{lesson}/complete
+     * @desc   Mark a lesson as completed for the authenticated student's enrollment.
+     * @controller EnrollmentController@completeLesson
+     */
+    Route::post('/enrollments/{enrollment}/lessons/{lesson}/complete', [EnrollmentController::class, 'completeLesson']);
+
+    /**
      * @name   My Enrolled Courses
      * @path   GET /api/v1/my-learning
      * @desc   List all courses the student has enrolled in.
