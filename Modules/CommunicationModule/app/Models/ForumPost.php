@@ -2,11 +2,14 @@
 
 namespace Modules\CommunicationModule\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
-// use Modules\CommunicationModule\Database\Factories\ForumPostFactory;
+ use Modules\CommunicationModule\Database\Factories\ForumPostFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
 
 class ForumPost extends Model
 {
@@ -24,4 +27,16 @@ class ForumPost extends Model
             ->useLogName('forum_post')
             ->setDescriptionForEvent(fn(string $e) => "ForumPost was {$e}");
     }
+    public function author(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'author_id');
+    }
+
+    public function thread(): BelongsTo
+    {
+        return $this->belongsTo(ForumThread::class, 'forum_thread_id');
+    }
 }
+    
+
+
