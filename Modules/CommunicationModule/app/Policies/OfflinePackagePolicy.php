@@ -2,8 +2,9 @@
 
 namespace Modules\CommunicationModule\Policies;
 
-use Modules\UserMangementModule\Models\User;
+use App\Models\User;
 use Modules\CommunicationModule\Models\OfflinePackage;
+use Modules\LearningModule\Models\CourseInstructor;
 use Modules\LearningModule\Models\Enrollment;
 
 class OfflinePackagePolicy
@@ -19,16 +20,24 @@ class OfflinePackagePolicy
             return false;
         }
 
-        // Admin / super-admin / creator can always download
         if ($user->hasAnyRole(['super-admin', 'admin'])
             || (int) $offlinePackage->created_by === (int) $user->id) {
             return true;
         }
 
-        // Student must be actively enrolled in the course
-        return Enrollment::where('learner_id', $user->id)
+        $isAssignedInstructor = CourseInstructor::query()
             ->where('course_id', $offlinePackage->course_id)
-            ->where('enrollment_status', 'active')
+            ->where('instructor_id', $user->id)
+            ->exists();
+
+        if ($isAssignedInstructor) {
+            return true;
+        }
+
+        return Enrollment::query()
+            ->where('learner_id', $user->id)
+            ->where('course_id', $offlinePackage->course_id)
+            ->whereIn('enrollment_status', ['active', 'completed'])
             ->exists();
     }
 }
