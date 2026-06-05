@@ -17,6 +17,7 @@ use Modules\LearningModule\Http\Resources\EnrollmentCollection;
 use Modules\LearningModule\Http\Resources\EnrollmentResource;
 use Modules\LearningModule\Models\Course;
 use Modules\LearningModule\Models\Enrollment;
+use Modules\LearningModule\Models\Lesson;
 use Modules\LearningModule\Services\EnrollmentService;
 
 /**
@@ -257,6 +258,46 @@ class EnrollmentController extends Controller
      * @param Enrollment $enrollment
      * @return JsonResponse
      */
+    /**
+     * Mark a lesson as completed for the given enrollment.
+     *
+     * POST /enrollments/{enrollment}/lessons/{lesson}/complete
+     *
+     * @param Enrollment $enrollment
+     * @param Lesson $lesson
+     * @return JsonResponse
+     */
+    public function completeLesson(Enrollment $enrollment, Lesson $lesson): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+
+            // Only the enrolled learner can mark their own lessons
+            if ((int) $enrollment->learner_id !== (int) $user->id
+                && ! $user->hasAnyRole(['super-admin', 'admin'])) {
+                return self::error('You are not allowed to complete lessons for this enrollment.', 403);
+            }
+
+            $result = $this->enrollmentService->completeLesson($enrollment, $lesson);
+
+            $message = $result['already_completed']
+                ? 'Lesson was already completed.'
+                : 'Lesson marked as completed successfully.';
+
+            return self::success($result, $message);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            return self::error($e->getMessage(), $e->getStatusCode());
+        } catch (Exception $e) {
+            Log::error('Unexpected error completing lesson', [
+                'enrollment_id' => $enrollment->enrollment_id ?? null,
+                'lesson_id'     => $lesson->lesson_id ?? null,
+                'user_id'       => Auth::id(),
+                'error'         => $e->getMessage(),
+            ]);
+            throw $e;
+        }
+    }
+
     public function getProgress(Enrollment $enrollment): JsonResponse
     {
         try {

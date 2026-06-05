@@ -53,4 +53,7 @@ Route::middleware(['auth:api'])->prefix('v1')->group(function () {
     // Enrollment progress
     Route::get('/{enrollment}/progress', [EnrollmentController::class, 'getProgress'])->name('enrollments.progress');
 
+    // Complete a lesson for an enrollment
+    Route::post('/enrollments/{enrollment}/lessons/{lesson}/complete', [EnrollmentController::class, 'completeLesson'])->name('enrollments.complete-lesson');
+
 });

@@ -463,6 +463,54 @@ class EnrollmentService
             return null;
         }
     }
+    /**
+     * Mark a lesson as completed for a specific enrollment.
+     * Updates progress percentage and triggers course completion check.
+     *
+     * @param Enrollment $enrollment
+     * @param Lesson $lesson
+     * @return array
+     */
+    public function completeLesson(Enrollment $enrollment, Lesson $lesson): array
+    {
+        // Verify lesson belongs to the enrolled course
+        $lessonBelongsToCourse = Lesson::where('lesson_id', $lesson->lesson_id)
+            ->whereHas('unit', fn($q) => $q->where('course_id', $enrollment->course_id))
+            ->exists();
+
+        if (! $lessonBelongsToCourse) {
+            throw new HttpException(422, 'This lesson does not belong to the enrolled course.');
+        }
+
+        // Check enrollment is active
+        if ($enrollment->enrollment_status !== EnrollmentStatus::ACTIVE->value
+            && $enrollment->enrollment_status !== 'active') {
+            throw new HttpException(422, 'Enrollment is not active.');
+        }
+
+        // Attach lesson if not already completed (syncWithoutDetaching prevents duplicates)
+        $already = $enrollment->completedLessons()
+            ->where('lessons.lesson_id', $lesson->lesson_id)
+            ->exists();
+
+        if (! $already) {
+            $enrollment->completedLessons()->attach($lesson->lesson_id, [
+                'completed_at' => now(),
+            ]);
+        }
+
+        // Recalculate progress
+        $this->updateProgress($enrollment);
+        $enrollment->refresh();
+
+        return [
+            'already_completed' => $already,
+            'progress_percentage' => (float) $enrollment->progress_percentage,
+            'enrollment_status'  => $enrollment->enrollment_status,
+            'completed_at'       => $enrollment->completed_at,
+        ];
+    }
+
     public function updateStatus(Enrollment $enrollment, EnrollmentStatus $status): ?Enrollment
     {
         try {
