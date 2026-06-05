@@ -14,6 +14,8 @@ use Modules\UserMangementModule\Models\Student;
 use Modules\UserMangementModule\Models\User;
 use Spatie\Translatable\HasTranslations;
 use Modules\AssesmentModule\Enums\QuizStatus;
+use App\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 
 /**
  * Class Quiz
@@ -31,6 +33,7 @@ class Quiz extends Model
     use HasFactory;
     use SoftDeletes;
     use HasTranslations;
+    use LogsActivity;
 
     /**
      * The name of the table associated with the model.
@@ -85,6 +88,18 @@ class Quiz extends Model
      * @var array
      */
     public array $translatable = ['title', 'description'];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['instructor_id', 'quizable_id', 'quizable_type', 'type', 'status',
+                       'max_score', 'passing_score', 'auto_grade_enabled',
+                       'available_from', 'due_date', 'duration_minutes'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('quiz')
+            ->setDescriptionForEvent(fn(string $e) => "Quiz was {$e}");
+    }
 
     /**
      * Get the course that this quiz belongs to.

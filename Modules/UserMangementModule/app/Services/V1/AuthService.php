@@ -18,6 +18,7 @@ use Modules\UserMangementModule\Database\Seeders\RolesAndPermissions\StudentRole
 use Modules\UserMangementModule\Database\Seeders\RolesAndPermissions\SuperAdminRoleSeeder;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
+use Spatie\Activitylog\Models\Activity;
 
 class AuthService
 {

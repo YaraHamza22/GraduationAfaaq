@@ -10,6 +10,8 @@ use Illuminate\Support\Carbon;
 use Modules\AssesmentModule\Builders\AnswerBuilder;
 use Modules\UserMangementModule\Models\User;
 use Spatie\Translatable\HasTranslations;
+use App\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 
 /**
  * Class Answer
@@ -39,6 +41,7 @@ class Answer extends Model
 {
     use HasFactory;
     use HasTranslations;
+    use LogsActivity;
 
     /**
      * The attributes that are mass assignable.
@@ -69,6 +72,17 @@ class Answer extends Model
         'question_score' => 'integer',
         'answer_text' => 'array',
     ];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['attempt_id', 'question_id', 'selected_option_id', 'boolean_answer',
+                       'is_correct', 'question_score', 'graded_by', 'graded_at'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('answer')
+            ->setDescriptionForEvent(fn(string $e) => "Answer was {$e}");
+    }
 
     /**
      * Attributes that are translatable (Spatie).

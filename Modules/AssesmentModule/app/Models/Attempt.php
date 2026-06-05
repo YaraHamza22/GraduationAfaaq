@@ -13,6 +13,8 @@ use Illuminate\Support\Carbon;
 use Modules\AssesmentModule\Builders\AttemptBuilder;
 use Modules\UserMangementModule\Models\Student;
 use Modules\UserMangementModule\Models\User;
+use App\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 
 /**
  * Class Attempt
@@ -50,6 +52,7 @@ use Modules\UserMangementModule\Models\User;
 class Attempt extends Model
 {
     use HasFactory;
+    use LogsActivity;
 
     /**
      * The attributes that are mass assignable.
@@ -95,8 +98,19 @@ class Attempt extends Model
     protected $appends = [
         'remaining_seconds',
         'is_time_up',
-        'time_spent_seconds'
+        'time_spent_seconds',
     ];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['quiz_id', 'student_id', 'attempt_number', 'status', 'score', 'is_passed',
+                       'start_at', 'ends_at', 'submitted_at', 'graded_at', 'graded_by'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('attempt')
+            ->setDescriptionForEvent(fn(string $e) => "Attempt was {$e}");
+    }
 
     /**
      * Get the quiz that owns the attempt.

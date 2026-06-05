@@ -38,12 +38,14 @@ use Modules\UserMangementModule\Models\Builders\UserBuilder;
 use Modules\UserMangementModule\Models\Instructor;
 use Modules\UserMangementModule\Models\Student;
 use Spatie\Permission\Traits\HasRoles;
+use App\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 
 
 class User extends Authenticatable implements JWTSubject, HasMedia
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable,  HasRoles, SoftDeletes, CascadeSoftDeletes, InteractsWithMedia;
+    use HasFactory, Notifiable, HasRoles, SoftDeletes, CascadeSoftDeletes, InteractsWithMedia, LogsActivity;
 
     /**
      * The attributes that are mass assignable.
@@ -67,6 +69,16 @@ class User extends Authenticatable implements JWTSubject, HasMedia
         'password',
         'remember_token',
     ];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['name', 'email', 'phone', 'address', 'date_of_birth', 'gender'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('user')
+            ->setDescriptionForEvent(fn(string $e) => "User was {$e}");
+    }
 
     protected $cascadeDeletes = ['studentProfile', 'instructorProfile', 'auditorProfile'];
 

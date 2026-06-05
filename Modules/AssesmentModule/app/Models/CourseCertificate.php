@@ -6,9 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\LearningModule\Models\Course;
 use Modules\UserMangementModule\Models\User;
+use App\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 
 class CourseCertificate extends Model
 {
+    use LogsActivity;
     protected $fillable = [
         'course_id',
         'student_id',
@@ -20,6 +23,16 @@ class CourseCertificate extends Model
         'weighted_percentage' => 'decimal:2',
         'issued_at' => 'datetime',
     ];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logFillable()
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('certificate')
+            ->setDescriptionForEvent(fn(string $e) => "Certificate was {$e}");
+    }
 
     public function course(): BelongsTo
     {

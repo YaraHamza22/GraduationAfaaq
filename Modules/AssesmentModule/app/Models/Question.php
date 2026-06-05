@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Spatie\Translatable\HasTranslations;
 use Modules\AssesmentModule\Builders\QuestionBuilder;
 use Modules\AssesmentModule\Enums\QuestionType;
+use App\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 
 /**
  * Class Question
@@ -26,6 +28,7 @@ class Question extends Model
     use HasFactory;
     use HasTranslations;
     use SoftDeletes;
+    use LogsActivity;
 
     /**
      * The name of the table associated with the model.
@@ -60,6 +63,16 @@ class Question extends Model
         'question_text' => 'array',
         'type' => \Modules\AssesmentModule\Enums\QuestionType::class,
     ];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['quiz_id', 'type', 'point', 'order_index', 'is_required'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('question')
+            ->setDescriptionForEvent(fn(string $e) => "Question was {$e}");
+    }
 
     /**
      * The attributes that are translatable.

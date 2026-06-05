@@ -9,11 +9,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
 use Modules\UserMangementModule\Models\Builders\InstructorBuilder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 // use Modules\UserMangementModule\Database\Factories\InstructorFactory;
 
 class Instructor extends Model implements HasMedia
 {
-    use HasFactory, SoftDeletes , InteractsWithMedia,Notifiable;
+    use HasFactory, SoftDeletes, InteractsWithMedia, Notifiable, LogsActivity;
 
     /**
      * The attributes that are mass assignable.
@@ -27,8 +29,18 @@ class Instructor extends Model implements HasMedia
     protected function casts(): array
     {
         return [
-            'years_of_experience' => 'integer'
+            'years_of_experience' => 'integer',
         ];
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logFillable()
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('instructor')
+            ->setDescriptionForEvent(fn(string $e) => "Instructor profile was {$e}");
     }
 
     public function newEloquentBuilder($query): InstructorBuilder

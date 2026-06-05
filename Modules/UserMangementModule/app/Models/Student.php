@@ -9,11 +9,13 @@ use Illuminate\Notifications\Notifiable;
 use Modules\AssesmentModule\Models\Quiz;
 use Modules\UserMangementModule\Models\Builders\StudentBuilder;
 use Modules\UserMangementModule\Enums\EducationalLevel;
+use App\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 // use Modules\UserMangementModule\Database\Factories\StudentFactory;
 
-class Student extends Model 
+class Student extends Model
 {
-    use HasFactory, SoftDeletes ,Notifiable ;
+    use HasFactory, SoftDeletes, Notifiable, LogsActivity;
 
     /**
      * The attributes that are mass assignable.
@@ -32,9 +34,18 @@ class Student extends Model
     {
         return [
             'education_level' => EducationalLevel::class,
-            'joined_at' => 'datetime'
-
+            'joined_at' => 'datetime',
         ];
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logFillable()
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('student')
+            ->setDescriptionForEvent(fn(string $e) => "Student profile was {$e}");
     }
 
     public function newEloquentBuilder($query): StudentBuilder
