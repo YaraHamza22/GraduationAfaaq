@@ -39,7 +39,7 @@ class OfflinePackageController extends Controller
 
     public function issueToken(IssueDownloadTokenRequest $request, OfflinePackage $offlinePackage)
     {
-        $this->authorize('update', $offlinePackage);
+        $this->authorize('download', $offlinePackage);
         $token = $this->integrationService->issueOfflineToken($offlinePackage, $request->validated());
         return self::success($token, 'Offline download token issued successfully.', 201);
     }
