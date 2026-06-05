@@ -16,7 +16,8 @@ class StoreOfflinePackageRequest extends FormRequest
             'course_id' => ['required', 'integer', 'exists:courses,course_id'],
             'version' => ['sometimes', 'string', 'max:60'],
             'manifest' => ['sometimes', 'array'],
-            'file_url' => ['nullable', 'url'],
+            'file_url' => ['nullable', 'url', 'required_without:package_file'],
+            'package_file' => ['nullable', 'file', 'required_without:file_url', 'mimes:zip,bin,tar,gz'],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

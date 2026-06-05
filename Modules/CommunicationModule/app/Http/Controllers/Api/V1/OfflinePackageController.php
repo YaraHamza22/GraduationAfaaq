@@ -5,6 +5,8 @@ namespace Modules\CommunicationModule\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Modules\CommunicationModule\Http\Requests\Offline\IssueDownloadTokenRequest;
 use Modules\CommunicationModule\Http\Requests\Offline\StoreOfflinePackageRequest;
 use Modules\CommunicationModule\Http\Requests\Offline\StoreOfflineSyncBatchRequest;
@@ -28,7 +30,15 @@ class OfflinePackageController extends Controller
 
     public function store(StoreOfflinePackageRequest $request)
     {
-        $package = OfflinePackage::query()->create($request->validated() + ['created_by' => Auth::id()]);
+        $payload = $request->validated();
+
+        if ($request->hasFile('package_file')) {
+            $payload['file_url'] = $this->storeOfflinePackageFile($request);
+        }
+
+        unset($payload['package_file']);
+
+        $package = OfflinePackage::query()->create($payload + ['created_by' => Auth::id()]);
         return self::success($package, 'Offline package created successfully.', 201);
     }
 
@@ -100,5 +110,23 @@ class OfflinePackageController extends Controller
         } catch (Throwable $e) {
             return self::error($e->getMessage(), 422);
         }
+    }
+
+    private function storeOfflinePackageFile(StoreOfflinePackageRequest $request): string
+    {
+        $uploadedFile = $request->file('package_file');
+        $courseId = (int) $request->input('course_id');
+        $version = (string) $request->input('version', 'package');
+        $safeVersion = Str::slug($version, '-');
+        $extension = $uploadedFile?->getClientOriginalExtension() ?: 'zip';
+        $fileName = "course-{$courseId}-{$safeVersion}.{$extension}";
+        $storedPath = $uploadedFile->storeAs('offline', $fileName, 'public');
+        $publicPath = Storage::disk('public')->url($storedPath);
+
+        if (Str::startsWith($publicPath, ['http://', 'https://'])) {
+            return $publicPath;
+        }
+
+        return url($publicPath);
     }
 }
