@@ -3,6 +3,7 @@
 namespace Modules\CommunicationModule\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -24,6 +25,22 @@ class VirtualSessionController extends Controller
     {
         $sessions = VirtualSession::query()->latest()->paginate(15);
         return self::paginated($sessions, 'Virtual sessions fetched successfully.');
+    }
+
+    public function enrolledStudents(VirtualSession $virtualSession)
+    {
+        if (!$virtualSession->course_id) {
+            return self::success([], 'No course linked to this session.');
+        }
+
+        $students = User::query()
+            ->join('enrollments', 'users.id', '=', 'enrollments.learner_id')
+            ->where('enrollments.course_id', $virtualSession->course_id)
+            ->select('users.id', 'users.name', 'users.email')
+            ->orderBy('users.name')
+            ->get();
+
+        return self::success($students, 'Enrolled students fetched successfully.');
     }
 
     public function studentIndex()
