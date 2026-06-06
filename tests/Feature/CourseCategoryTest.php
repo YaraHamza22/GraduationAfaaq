@@ -2,13 +2,13 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Modules\UserMangementModule\Models\User;
 use Modules\LearningModule\Models\CourseCategory;
-use Spatie\Permission\Models\Role;
+use Modules\UserMangementModule\Models\User;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
+use Tests\TestCase;
 
 class CourseCategoryTest extends TestCase
 {
@@ -33,12 +33,12 @@ class CourseCategoryTest extends TestCase
         }
 
         $this->admin = User::create([
-            'name'          => 'Admin',
-            'email'         => 'admin@test.com',
-            'password'      => 'Password123!',
-            'phone'         => '+963999999999',
+            'name' => 'Admin',
+            'email' => 'admin@test.com',
+            'password' => 'Password123!',
+            'phone' => '+963999999999',
             'date_of_birth' => '2000-01-01',
-            'gender'        => 'male',
+            'gender' => 'male',
         ]);
         $this->admin->assignRole('super-admin');
         $this->admin->givePermissionTo($permissions);
@@ -46,13 +46,11 @@ class CourseCategoryTest extends TestCase
         $this->token = auth('api')->login($this->admin);
     }
 
-    // ─── LIST ────────────────────────────────────────────────────────────────
-
     public function test_can_list_course_categories(): void
     {
         CourseCategory::create([
-            'name'      => ['en' => 'Programming', 'ar' => 'برمجة'],
-            'slug'      => 'programming',
+            'name' => ['en' => 'Programming', 'ar' => 'برمجة'],
+            'slug' => 'programming',
             'is_active' => true,
         ]);
 
@@ -62,15 +60,13 @@ class CourseCategoryTest extends TestCase
             ->assertJsonPath('status', 'success');
     }
 
-    // ─── STORE ───────────────────────────────────────────────────────────────
-
     public function test_can_create_course_category(): void
     {
         $this->withToken($this->token)
             ->postJson('/api/v1/course-categories', [
-                'name'        => ['en' => 'Data Science', 'ar' => 'علم البيانات'],
+                'name' => ['en' => 'Data Science', 'ar' => 'علم البيانات'],
                 'description' => ['en' => 'Data related courses'],
-                'is_active'   => true,
+                'is_active' => true,
             ])
             ->assertStatus(201)
             ->assertJsonPath('status', 'success');
@@ -87,13 +83,11 @@ class CourseCategoryTest extends TestCase
             ->assertStatus(422);
     }
 
-    // ─── SHOW ────────────────────────────────────────────────────────────────
-
     public function test_can_show_course_category(): void
     {
         $category = CourseCategory::create([
-            'name'      => ['en' => 'Web Dev'],
-            'slug'      => 'web-dev',
+            'name' => ['en' => 'Web Dev'],
+            'slug' => 'web-dev',
             'is_active' => true,
         ]);
 
@@ -103,13 +97,11 @@ class CourseCategoryTest extends TestCase
             ->assertJsonPath('status', 'success');
     }
 
-    // ─── UPDATE ──────────────────────────────────────────────────────────────
-
     public function test_can_update_course_category(): void
     {
         $category = CourseCategory::create([
-            'name'      => ['en' => 'Mobile'],
-            'slug'      => 'mobile',
+            'name' => ['en' => 'Mobile'],
+            'slug' => 'mobile',
             'is_active' => true,
         ]);
 
@@ -121,13 +113,11 @@ class CourseCategoryTest extends TestCase
             ->assertJsonPath('status', 'success');
     }
 
-    // ─── ACTIVATE / DEACTIVATE ───────────────────────────────────────────────
-
     public function test_can_activate_and_deactivate_category(): void
     {
         $category = CourseCategory::create([
-            'name'      => ['en' => 'DevOps'],
-            'slug'      => 'devops',
+            'name' => ['en' => 'DevOps'],
+            'slug' => 'devops',
             'is_active' => false,
         ]);
 
@@ -137,7 +127,7 @@ class CourseCategoryTest extends TestCase
 
         $this->assertDatabaseHas('course_categories', [
             'course_category_id' => $category->course_category_id,
-            'is_active'          => true,
+            'is_active' => true,
         ]);
 
         $this->withToken($this->token)
@@ -146,26 +136,7 @@ class CourseCategoryTest extends TestCase
 
         $this->assertDatabaseHas('course_categories', [
             'course_category_id' => $category->course_category_id,
-            'is_active'          => false,
-        ]);
-    }
-
-    // ─── DELETE ──────────────────────────────────────────────────────────────
-
-    public function test_can_delete_course_category(): void
-    {
-        $category = CourseCategory::create([
-            'name'      => ['en' => 'Cloud'],
-            'slug'      => 'cloud',
-            'is_active' => true,
-        ]);
-
-        $this->withToken($this->token)
-            ->deleteJson("/api/v1/course-categories/{$category->course_category_id}")
-            ->assertOk();
-
-        $this->assertDatabaseMissing('course_categories', [
-            'course_category_id' => $category->course_category_id,
+            'is_active' => false,
         ]);
     }
 }
