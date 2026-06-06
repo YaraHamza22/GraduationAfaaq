@@ -5,6 +5,7 @@ namespace Modules\LearningModule\Services;
 use App\Traits\CachesQueries;
 use App\Traits\HelperTrait;
 use Exception;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -355,12 +356,9 @@ class CourseService
      */
     public function canBeDeleted(Course $course): bool
     {
-        // Check for active enrollments
-        $activeEnrollments = $course->enrollments()
+        return ! $course->enrollments()
             ->where('enrollment_status', 'active')
-            ->count();
-
-        return $activeEnrollments === 0;
+            ->exists();
     }
 
     /**
@@ -376,34 +374,49 @@ class CourseService
             Log::warning("Attempted to delete course with active enrollments", [
                 'course_id' => $course->course_id,
             ]);
-            return false;
+            throw new Exception('Cannot delete course while it has active enrollments.', 409);
         }
 
         try {
-            return DB::transaction(function () use ($course) {
+            return (bool) DB::transaction(function () use ($course) {
                 $courseId = $course->course_id;
                 $courseTitle = $course->title;
                 $deleted = $course->delete();
 
-                if ($deleted) {
-                    // Clear course cache after deletion
-                    $this->clearCourseCache($course);
-
-                    Log::info("Course deleted", [
-                        'course_id' => $courseId,
-                        'title' => $courseTitle,
-                    ]);
+                if (! $deleted) {
+                    throw new Exception('Course could not be deleted.', 500);
                 }
 
-                return $deleted;
+                // Clear course cache after deletion
+                $this->clearCourseCache($course);
+
+                Log::info("Course deleted", [
+                    'course_id' => $courseId,
+                    'title' => $courseTitle,
+                ]);
+
+                return true;
             });
+        } catch (QueryException $e) {
+            Log::error("Failed to delete course due to database constraint", [
+                'course_id' => $course->course_id ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            throw new Exception(
+                'Cannot delete course because it still has related records that must be removed first.',
+                409,
+                $e
+            );
         } catch (Exception $e) {
             Log::error("Failed to delete course", [
                 'course_id' => $course->course_id ?? null,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            return false;
+
+            throw $e;
         }
     }
 

@@ -246,19 +246,29 @@ class CourseController extends Controller
     public function destroy(Course $course): JsonResponse
     {
         try {
-            $deleted = $this->courseService->delete($course);
-
-            if (!$deleted) {
-                throw new Exception('Cannot delete course. It may have active enrollments or other dependencies.', 422);
-            }
+            $this->courseService->delete($course);
 
             return self::success(null, 'Course deleted successfully.');
+        } catch (QueryException $e) {
+            Log::error('Database error deleting course', [
+                'course_id' => $course->course_id ?? null,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
         } catch (Exception $e) {
             Log::error('Unexpected error deleting course', [
                 'course_id' => $course->course_id ?? null,
                 'user_id' => Auth::id(),
                 'error' => $e->getMessage(),
             ]);
+
+            $code = (int) $e->getCode();
+            if ($code >= 400 && $code < 500) {
+                throw $e;
+            }
+
             throw new Exception('An error occurred while deleting the course.', 500);
         }
     }
