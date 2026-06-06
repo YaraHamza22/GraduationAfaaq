@@ -6,6 +6,7 @@ use App\Http\Requests\ApiFormRequest;
 use Illuminate\Validation\Rule;
 use Modules\LearningModule\Models\Course;
 use App\Models\User;
+use Modules\LearningModule\Enums\EnrollmentStatus;
 
 /**
  * Form request for storing a new enrollment.
@@ -46,7 +47,10 @@ class StoreEnrollmentRequest extends ApiFormRequest
                 'exists:users,id',
                 Rule::unique('enrollments', 'learner_id')
                     ->where('course_id', $this->get('course_id'))
-                    ->whereIn('enrollment_status', ['active', 'suspended']),
+                    ->whereIn('enrollment_status', [
+                        EnrollmentStatus::ACTIVE->value,
+                        EnrollmentStatus::COMPLETED->value,
+                    ]),
             ],
 
             // Course validation
@@ -83,7 +87,7 @@ class StoreEnrollmentRequest extends ApiFormRequest
             'learner_id.required' => 'The learner ID is required.',
             'learner_id.integer' => 'The learner ID must be an integer.',
             'learner_id.exists' => 'The selected learner does not exist.',
-            'learner_id.unique' => 'This learner is already enrolled in this course with an active or suspended status.',
+            'learner_id.unique' => 'This learner already has an active or completed enrollment for this course.',
 
             'course_id.required' => 'The course ID is required.',
             'course_id.integer' => 'The course ID must be an integer.',
