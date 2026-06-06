@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Modules\UserMangementModule\Database\Seeders\RolesAndPermissions\AuditorRoleSeeder;
+use Modules\UserMangementModule\Database\Seeders\RolesAndPermissions\AuditorUserSeeder;
 use Modules\UserMangementModule\Database\Seeders\RolesAndPermissions\InstructorRoleSeeder;
 use Modules\UserMangementModule\Database\Seeders\RolesAndPermissions\PermissionSeeder;
 use Modules\UserMangementModule\Database\Seeders\RolesAndPermissions\StudentRoleSeeder;
@@ -24,6 +25,7 @@ class DatabaseSeeder extends Seeder
             StudentRoleSeeder::class,
             InstructorRoleSeeder::class,
             AuditorRoleSeeder::class,
+            AuditorUserSeeder::class,
             SuperAdminRoleSeeder::class,
         ]);
     }

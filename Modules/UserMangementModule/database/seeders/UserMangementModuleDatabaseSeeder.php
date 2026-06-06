@@ -9,6 +9,7 @@ use Modules\UserMangementModule\Database\Seeders\RolesAndPermissions\AdminRoleSe
 use Modules\UserMangementModule\Database\Seeders\RolesAndPermissions\InstructorRoleSeeder;
 use Modules\UserMangementModule\Database\Seeders\RolesAndPermissions\StudentRoleSeeder;    
 use Modules\UserMangementModule\Database\Seeders\RolesAndPermissions\AuditorRoleSeeder;
+use Modules\UserMangementModule\Database\Seeders\RolesAndPermissions\AuditorUserSeeder;
 
 class UserMangementModuleDatabaseSeeder extends Seeder
 {
@@ -24,6 +25,7 @@ class UserMangementModuleDatabaseSeeder extends Seeder
             StudentRoleSeeder::class,
             InstructorRoleSeeder::class,
             AuditorRoleSeeder::class,
+            AuditorUserSeeder::class,
          ]);
     }
 }

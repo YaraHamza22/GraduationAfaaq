@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\AssesmentModule\Http\Controllers\Api\V1\AttemptController;
 use Modules\LearningModule\Http\Controllers\CourseController;
 use Modules\LearningModule\Http\Controllers\CourseCategoryController;
 use Modules\LearningModule\Http\Controllers\EnrollmentController;
@@ -849,6 +850,8 @@ Route::group([
      Question Options
     */
     Route::apiResource('question-options', QuestionOptionController::class);
+    /*Attempt*/
+    Route::apiResource('result',AttemptController::class);
 
 
 });
