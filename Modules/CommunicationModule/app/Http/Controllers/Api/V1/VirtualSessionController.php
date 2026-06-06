@@ -31,8 +31,7 @@ class VirtualSessionController extends Controller
         $sessions = VirtualSession::query()
             ->join('enrollments', 'virtual_sessions.course_id', '=', 'enrollments.course_id')
             ->where('enrollments.learner_id', Auth::id())
-            ->where('enrollments.enrollment_status', 'active')
-            ->where('virtual_sessions.status', 'published')
+            ->whereNotIn('virtual_sessions.status', ['draft'])
             ->select('virtual_sessions.*')
             ->orderBy('virtual_sessions.starts_at', 'asc')
             ->paginate(15);
