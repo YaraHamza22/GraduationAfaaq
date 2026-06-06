@@ -49,6 +49,8 @@ Route::middleware(['auth:api'])->prefix('v1')->group(function () {
     Route::get('external-integrations/{provider}/oauth-url', [IntegrationController::class, 'oauthUrl']);
     Route::post('external-integrations/{provider}/exchange-code', [IntegrationController::class, 'exchangeCode']);
 
+    Route::get('student/virtual-sessions', [VirtualSessionController::class, 'studentIndex']);
+
     Route::middleware(['role:super-admin|instructor,api'])->group(function () {
         Route::apiResource('virtual-sessions', VirtualSessionController::class);
         Route::post('virtual-sessions/{virtualSession}/publish', [VirtualSessionController::class, 'publish']);

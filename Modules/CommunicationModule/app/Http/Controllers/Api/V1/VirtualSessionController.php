@@ -26,6 +26,20 @@ class VirtualSessionController extends Controller
         return self::paginated($sessions, 'Virtual sessions fetched successfully.');
     }
 
+    public function studentIndex()
+    {
+        $sessions = VirtualSession::query()
+            ->join('enrollments', 'virtual_sessions.course_id', '=', 'enrollments.course_id')
+            ->where('enrollments.learner_id', Auth::id())
+            ->where('enrollments.enrollment_status', 'active')
+            ->where('virtual_sessions.status', 'published')
+            ->select('virtual_sessions.*')
+            ->orderBy('virtual_sessions.starts_at', 'asc')
+            ->paginate(15);
+
+        return self::paginated($sessions, 'Your virtual sessions fetched successfully.');
+    }
+
     public function store(StoreVirtualSessionRequest $request)
     {
         $session = VirtualSession::query()->create($request->validated() + [
