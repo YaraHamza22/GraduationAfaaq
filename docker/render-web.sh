@@ -47,6 +47,7 @@ php artisan package:discover --ansi || true
 php artisan migrate --force || true
 php artisan module:migrate -a --force -n || true
 php artisan db:seed --force || true
+php artisan cache:clear || true
 php artisan permission:cache-reset || true
 
 exec apache2-foreground
