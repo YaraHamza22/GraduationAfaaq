@@ -15,13 +15,13 @@ class StoreVirtualSessionRequest extends FormRequest
     {
         return [
             'course_id' => ['nullable', 'integer', 'exists:courses,course_id'],
-            'integration_id' => ['nullable', 'integer', 'exists:external_integrations,id', 'required_without:join_url'],
-            'provider' => ['required', 'string', 'in:zoom,google_meet,google_classroom'],
+            'integration_id' => ['nullable', 'integer', 'exists:external_integrations,id'],
+            'provider' => ['required', 'string', 'in:afaq_live,zoom,google_meet,google_classroom'],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'starts_at' => ['required', 'date', 'after:now'],
             'ends_at' => ['nullable', 'date', 'after:starts_at'],
-            'join_url' => ['nullable', 'url', 'required_without:integration_id'],
+            'join_url' => ['nullable', 'url'],
             'metadata' => ['nullable', 'array'],
         ];
     }
@@ -38,6 +38,17 @@ class StoreVirtualSessionRequest extends FormRequest
     {
         $validator->after(function ($validator): void {
             if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $provider = (string) $this->input('provider');
+
+            if ($provider === 'afaq_live') {
+                return;
+            }
+
+            if (! $this->filled('join_url') && ! $this->filled('integration_id')) {
+                $validator->errors()->add('integration_id', 'Either an integration or a join URL is required.');
                 return;
             }
 

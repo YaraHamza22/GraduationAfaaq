@@ -86,6 +86,22 @@ class IntegrationService
 
     public function publishSession(VirtualSession $session): VirtualSession
     {
+        if ($session->provider === 'afaq_live') {
+            $providerPayload = $this->publishAfaqLiveSession($session);
+
+            $session->update([
+                'status' => 'published',
+                'provider_event_id' => (string) ($providerPayload['provider_event_id'] ?? Str::uuid()),
+                'join_url' => (string) ($providerPayload['join_url'] ?? $session->join_url),
+                'metadata' => array_merge((array) $session->metadata, [
+                    'provider_payload' => $providerPayload['raw'] ?? [],
+                    'room_id' => $providerPayload['room_id'] ?? "afaq-session-{$session->id}",
+                ]),
+            ]);
+
+            return $session->fresh();
+        }
+
         // Manual flow: if admin already provided a meeting link, publish without provider API calls.
         if (filled($session->join_url)) {
             $session->update([
@@ -122,6 +138,11 @@ class IntegrationService
 
     public function cancelSession(VirtualSession $session): VirtualSession
     {
+        if ($session->provider === 'afaq_live') {
+            $session->update(['status' => 'cancelled']);
+            return $session->fresh();
+        }
+
         if (! $session->integration_id) {
             $session->update(['status' => 'cancelled']);
             return $session->fresh();
@@ -383,6 +404,25 @@ class IntegrationService
             'provider_event_id' => (string) ($payload['id'] ?? ''),
             'join_url' => (string) ($payload['join_url'] ?? ''),
             'raw' => $payload,
+        ];
+    }
+
+    private function publishAfaqLiveSession(VirtualSession $session): array
+    {
+        $cfg = (array) config('communicationmodule.integrations.afaq_live');
+        $baseUrl = rtrim((string) ($cfg['live_base_url'] ?? 'https://afaaq.com/live'), '/');
+        $roomId = (string) data_get($session->metadata, 'room_id', "afaq-session-{$session->id}");
+        $joinUrl = $baseUrl.'?sessionId='.$session->id.'&room='.urlencode($roomId);
+
+        return [
+            'provider_event_id' => (string) ($session->provider_event_id ?: Str::uuid()),
+            'join_url' => $joinUrl,
+            'room_id' => $roomId,
+            'raw' => [
+                'room_id' => $roomId,
+                'live_base_url' => $baseUrl,
+                'quality' => 'hd',
+            ],
         ];
     }
 

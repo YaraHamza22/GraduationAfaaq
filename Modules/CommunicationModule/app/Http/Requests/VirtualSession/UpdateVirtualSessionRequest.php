@@ -12,6 +12,9 @@ class UpdateVirtualSessionRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'course_id' => ['sometimes', 'nullable', 'integer', 'exists:courses,course_id'],
+            'integration_id' => ['sometimes', 'nullable', 'integer', 'exists:external_integrations,id'],
+            'provider' => ['sometimes', 'string', 'in:afaq_live,zoom,google_meet,google_classroom'],
             'title' => ['sometimes', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string'],
             'starts_at' => ['sometimes', 'date'],

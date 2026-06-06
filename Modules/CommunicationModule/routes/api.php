@@ -58,6 +58,11 @@ Route::middleware(['auth:api'])->prefix('v1')->group(function () {
         Route::post('virtual-sessions/{virtualSession}/attendance', [VirtualSessionController::class, 'storeAttendance']);
         Route::get('virtual-sessions/{virtualSession}/students', [VirtualSessionController::class, 'enrolledStudents']);
     });
+
+    Route::get('virtual-sessions/{virtualSession}/join-context', [VirtualSessionController::class, 'joinContext'])
+        ->name('communication.virtual-sessions.join-context');
+    Route::post('virtual-sessions/{virtualSession}/signals', [VirtualSessionController::class, 'signal'])
+        ->name('communication.virtual-sessions.signal');
     Route::apiResource('offline-packages', OfflinePackageController::class)->only(['index', 'store', 'show']);
     Route::post('offline-packages/{offlinePackage}/tokens', [OfflinePackageController::class, 'issueToken']);
     Route::post('offline-packages/tokens/{offlineDownloadToken}/revoke', [OfflinePackageController::class, 'revokeToken']);

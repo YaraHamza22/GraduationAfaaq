@@ -6,6 +6,14 @@ return [
         'ca_bundle' => env('HTTP_CA_BUNDLE', null),
     ],
     'integrations' => [
+        'afaq_live' => [
+            'live_base_url' => env('COMM_AFAQ_LIVE_BASE_URL', 'https://afaaq.com/live'),
+            'ice_servers' => [
+                [
+                    'urls' => explode(',', (string) env('COMM_AFAQ_STUN_URLS', 'stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302')),
+                ],
+            ],
+        ],
         'zoom' => [
             'client_id' => env('COMM_ZOOM_CLIENT_ID', ''),
             'client_secret' => env('COMM_ZOOM_CLIENT_SECRET', ''),
