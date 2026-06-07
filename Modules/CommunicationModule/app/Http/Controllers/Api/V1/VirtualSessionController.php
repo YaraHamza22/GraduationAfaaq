@@ -190,19 +190,30 @@ class VirtualSessionController extends Controller
             'payload' => ['nullable', 'array'],
         ]);
 
-        VirtualSessionSignalSent::dispatch($virtualSession->id, [
-            'session_id' => $virtualSession->id,
-            'sender_user_id' => $user->id,
-            'sender_name' => $user->name ?? "User #{$user->id}",
-            'type' => $validated['type'],
-            'sender_peer_id' => $validated['sender_peer_id'],
-            'target_peer_id' => $validated['target_peer_id'] ?? null,
-            'payload' => $validated['payload'] ?? [],
-            'sent_at' => now()->toIso8601String(),
-        ]);
+        $broadcasted = false;
+        try {
+            VirtualSessionSignalSent::dispatch($virtualSession->id, [
+                'session_id' => $virtualSession->id,
+                'sender_user_id' => $user->id,
+                'sender_name' => $user->name ?? "User #{$user->id}",
+                'type' => $validated['type'],
+                'sender_peer_id' => $validated['sender_peer_id'],
+                'target_peer_id' => $validated['target_peer_id'] ?? null,
+                'payload' => $validated['payload'] ?? [],
+                'sent_at' => now()->toIso8601String(),
+            ]);
+            $broadcasted = true;
+        } catch (Throwable $e) {
+            // Broadcaster misconfigured — signal is acknowledged but not relayed in real time.
+            logger()->warning('VirtualSessionSignalSent broadcast failed', [
+                'session_id' => $virtualSession->id,
+                'type' => $validated['type'],
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return self::success([
-            'queued' => true,
+            'queued' => $broadcasted,
             'type' => $validated['type'],
         ], 'Signal sent successfully.');
     }
