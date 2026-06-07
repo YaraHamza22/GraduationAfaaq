@@ -159,7 +159,7 @@ class VirtualSessionController extends Controller
             'session_id' => $virtualSession->id,
             'room_id' => $roomId,
             'channel_name' => "private-afaq-live.{$virtualSession->id}",
-            'signal_url' => url("/api/v1/virtual-sessions/{$virtualSession->id}/signals"),
+            'signal_url' => "/api/v1/virtual-sessions/{$virtualSession->id}/signals",
             'broadcast_auth_url' => url('/broadcasting/auth'),
             'ice_servers' => $iceServers,
             'reverb' => [
