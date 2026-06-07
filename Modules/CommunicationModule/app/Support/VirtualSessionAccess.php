@@ -2,9 +2,9 @@
 
 namespace Modules\CommunicationModule\Support;
 
-use App\Models\User;
 use Modules\CommunicationModule\Models\VirtualSession;
 use Modules\LearningModule\Models\Enrollment;
+use Modules\UserMangementModule\Models\User;
 
 class VirtualSessionAccess
 {
