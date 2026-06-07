@@ -1,5 +1,7 @@
 <?php
 
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
 use Modules\CommunicationModule\Http\Controllers\Api\V1\ChatMessageController;
 use Modules\CommunicationModule\Http\Controllers\Api\V1\ChatThreadController;
@@ -9,6 +11,11 @@ use Modules\CommunicationModule\Http\Controllers\Api\V1\IntegrationController;
 use Modules\CommunicationModule\Http\Controllers\Api\V1\NotificationController;
 use Modules\CommunicationModule\Http\Controllers\Api\V1\OfflinePackageController;
 use Modules\CommunicationModule\Http\Controllers\Api\V1\VirtualSessionController;
+
+// Broadcasting channel auth accessible via the CORS-covered API prefix (no CORS issues for any origin)
+Route::post('v1/broadcasting/auth', function (Request $request) {
+    return Broadcast::auth($request);
+})->middleware(['auth:api']);
 
 Route::middleware(['auth:api'])->prefix('v1')->group(function () {
     Route::get('chat-threads/unread-count', [ChatThreadController::class, 'unreadCount']);
@@ -55,9 +62,11 @@ Route::middleware(['auth:api'])->prefix('v1')->group(function () {
         Route::apiResource('virtual-sessions', VirtualSessionController::class);
         Route::post('virtual-sessions/{virtualSession}/publish', [VirtualSessionController::class, 'publish']);
         Route::post('virtual-sessions/{virtualSession}/cancel', [VirtualSessionController::class, 'cancel']);
-        Route::post('virtual-sessions/{virtualSession}/attendance', [VirtualSessionController::class, 'storeAttendance']);
         Route::get('virtual-sessions/{virtualSession}/students', [VirtualSessionController::class, 'enrolledStudents']);
     });
+
+    // Any authenticated user who can join the session may submit their own attendance
+    Route::post('virtual-sessions/{virtualSession}/attendance', [VirtualSessionController::class, 'storeAttendance']);
 
     Route::get('virtual-sessions/{virtualSession}/join-context', [VirtualSessionController::class, 'joinContext'])
         ->name('communication.virtual-sessions.join-context');
