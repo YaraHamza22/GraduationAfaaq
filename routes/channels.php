@@ -1,9 +1,9 @@
 <?php
 
-use App\Models\User;
 use Illuminate\Support\Facades\Broadcast;
 use Modules\CommunicationModule\Models\VirtualSession;
 use Modules\CommunicationModule\Support\VirtualSessionAccess;
+use Modules\UserMangementModule\Models\User;
 
 Broadcast::routes([
     'middleware' => ['auth:api'],
