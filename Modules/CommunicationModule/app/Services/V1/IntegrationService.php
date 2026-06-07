@@ -410,7 +410,7 @@ class IntegrationService
     private function publishAfaqLiveSession(VirtualSession $session): array
     {
         $cfg = (array) config('communicationmodule.integrations.afaq_live');
-        $baseUrl = rtrim((string) ($cfg['live_base_url'] ?? 'https://afaaq.com/live'), '/');
+        $baseUrl = $this->normalizeAfaqLiveBaseUrl((string) ($cfg['live_base_url'] ?? 'https://afaaq.com/live'));
         $roomId = (string) data_get($session->metadata, 'room_id', "afaq-session-{$session->id}");
         $joinUrl = $baseUrl.'?sessionId='.$session->id.'&room='.urlencode($roomId);
 
@@ -424,6 +424,20 @@ class IntegrationService
                 'quality' => 'hd',
             ],
         ];
+    }
+
+    private function normalizeAfaqLiveBaseUrl(string $rawBaseUrl): string
+    {
+        $baseUrl = trim($rawBaseUrl);
+
+        if (str_contains($baseUrl, '=')) {
+            $candidate = trim((string) Str::afterLast($baseUrl, '='));
+            if (preg_match('#^https?://#i', $candidate) === 1) {
+                $baseUrl = $candidate;
+            }
+        }
+
+        return rtrim($baseUrl, '/');
     }
 
     private function cancelZoomMeeting(ExternalIntegration $integration, string $meetingId): void
