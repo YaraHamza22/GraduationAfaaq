@@ -50,4 +50,8 @@ php artisan db:seed --force || true
 php artisan cache:clear || true
 php artisan permission:cache-reset || true
 
+# Start Reverb WebSocket server on localhost:8080 (Apache proxies /app/ and /apps/ to it)
+php artisan reverb:start --host=127.0.0.1 --port=8080 --no-interaction > storage/logs/reverb.log 2>&1 &
+echo "Reverb started (PID: $!)"
+
 exec apache2-foreground

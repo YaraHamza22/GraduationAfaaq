@@ -80,7 +80,7 @@ RUN apt-get update && apt-get install -y \
     pgsql \
     pdo_mysql \
     zip \
-    && a2enmod rewrite \
+    && a2enmod rewrite proxy proxy_http proxy_wstunnel \
     && sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
     && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf \
     && rm -rf /var/lib/apt/lists/*
@@ -89,6 +89,7 @@ COPY . .
 COPY --from=vendor /app/vendor ./vendor
 COPY --from=assets /app/public/build ./public/build
 COPY docker/render-web.sh /usr/local/bin/render-web
+COPY docker/000-default.conf /etc/apache2/sites-available/000-default.conf
 
 RUN chmod +x /usr/local/bin/render-web \
     && mkdir -p storage/logs bootstrap/cache \
