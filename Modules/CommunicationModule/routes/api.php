@@ -63,6 +63,7 @@ Route::middleware(['auth:api'])->prefix('v1')->group(function () {
         Route::post('virtual-sessions/{virtualSession}/publish', [VirtualSessionController::class, 'publish']);
         Route::post('virtual-sessions/{virtualSession}/cancel', [VirtualSessionController::class, 'cancel']);
         Route::get('virtual-sessions/{virtualSession}/students', [VirtualSessionController::class, 'enrolledStudents']);
+        Route::get('virtual-sessions/{virtualSession}/attendance', [VirtualSessionController::class, 'attendance']);
     });
 
     // Any authenticated user who can join the session may submit their own attendance

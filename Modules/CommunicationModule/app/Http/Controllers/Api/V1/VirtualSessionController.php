@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Modules\CommunicationModule\Events\VirtualSessionSignalSent;
 use Modules\CommunicationModule\Jobs\ProcessIntegrationWebhook;
 use Modules\CommunicationModule\Http\Requests\VirtualSession\StoreAttendanceRequest;
@@ -116,6 +117,33 @@ class VirtualSessionController extends Controller
         $this->authorize('update', $virtualSession);
         $cancelled = $this->integrationService->cancelSession($virtualSession);
         return self::success($cancelled, 'Virtual session cancelled successfully.');
+    }
+
+    public function attendance(VirtualSession $virtualSession): JsonResponse
+    {
+        $user = Auth::user();
+        if (! $user || ! VirtualSessionAccess::canManage($user, $virtualSession)) {
+            return self::error('You are not allowed to view attendance for this session.', 403);
+        }
+
+        // Single indexed JOIN — virtual_session_id FK guarantees the index
+        $attendees = DB::table('session_attendances as sa')
+            ->join('users as u', 'sa.user_id', '=', 'u.id')
+            ->where('sa.virtual_session_id', $virtualSession->id)
+            ->select(
+                'sa.id',
+                'sa.user_id',
+                'u.name',
+                'u.email',
+                'sa.joined_at',
+                'sa.left_at',
+                'sa.duration_minutes',
+                'sa.created_at',
+            )
+            ->orderBy('sa.created_at', 'asc')
+            ->get();
+
+        return self::success($attendees->values(), 'Session attendees fetched successfully.');
     }
 
     public function storeAttendance(StoreAttendanceRequest $request, VirtualSession $virtualSession)
